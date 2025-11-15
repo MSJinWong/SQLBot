@@ -111,21 +111,6 @@ class HttpService {
           /* const val = mapping[locale] || locale */
           config.headers['Accept-Language'] = locale
         }
-        if (config.url?.includes('/xpack_static/') && config.baseURL) {
-          config.baseURL = config.baseURL.replace('/api/v1', '')
-          // Skip auth for xpack_static requests
-          return config
-        }
-
-        /* try {
-          const request_key = LicenseGenerator.generate()
-          config.headers['X-SQLBOT-KEY'] = request_key
-        } catch (e: any) {
-          if (e?.message?.includes('offline')) {
-            this.cancelCurrentRequest('license-key error detected')
-            showLicenseKeyError()
-          }
-        } */
 
         // Request logging
         // console.log(`[Request] ${config.method?.toUpperCase()} ${config.url}`)
@@ -436,7 +421,7 @@ class HttpService {
 export const request = new HttpService({
   baseURL: import.meta.env.VITE_API_BASE_URL,
 })
-/* 
+/*
 const showLicenseKeyError = (msg?: string) => {
   ElMessageBox.confirm(t('license.error_tips'), {
     confirmButtonType: 'primary',

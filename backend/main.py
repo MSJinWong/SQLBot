@@ -1,6 +1,6 @@
 import os
 
-import sqlbot_xpack
+# import sqlbot_xpack  # 商业扩展包，开发环境可注释
 from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
@@ -42,17 +42,43 @@ def init_table_and_ds_embedding():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import time
+    start_time = time.time()
+    SQLBotLogUtil.info("🚀 DataMate 开始启动...")
+
+    step_start = time.time()
     run_migrations()
+    SQLBotLogUtil.info(f"✅ 数据库迁移完成 - 耗时: {time.time() - step_start:.2f}秒")
+
+    step_start = time.time()
     init_sqlbot_cache()
+    SQLBotLogUtil.info(f"✅ 缓存初始化完成 - 耗时: {time.time() - step_start:.2f}秒")
+
+    step_start = time.time()
     init_dynamic_cors(app)
+    SQLBotLogUtil.info(f"✅ 动态CORS初始化完成 - 耗时: {time.time() - step_start:.2f}秒")
+
+    step_start = time.time()
     init_terminology_embedding_data()
+    SQLBotLogUtil.info(f"✅ 术语嵌入初始化完成 - 耗时: {time.time() - step_start:.2f}秒")
+
+    step_start = time.time()
     init_data_training_embedding_data()
+    SQLBotLogUtil.info(f"✅ 训练数据嵌入初始化完成 - 耗时: {time.time() - step_start:.2f}秒")
+
+    step_start = time.time()
     init_table_and_ds_embedding()
-    SQLBotLogUtil.info("✅ SQLBot 初始化完成")
-    await sqlbot_xpack.core.clean_xpack_cache()
+    SQLBotLogUtil.info(f"✅ 表和数据源嵌入初始化完成 - 耗时: {time.time() - step_start:.2f}秒")
+
+    step_start = time.time()
+    # await sqlbot_xpack.core.clean_xpack_cache()  # 商业扩展包
     await async_model_info()  # 异步加密已有模型的密钥和地址
+    SQLBotLogUtil.info(f"✅ 模型信息加密完成 - 耗时: {time.time() - step_start:.2f}秒")
+
+    total_time = time.time() - start_time
+    SQLBotLogUtil.info(f"✅ DataMate 初始化完成 - 总耗时: {total_time:.2f}秒")
     yield
-    SQLBotLogUtil.info("SQLBot 应用关闭")
+    SQLBotLogUtil.info("DataMate 应用关闭")
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -75,8 +101,8 @@ mcp_app.mount("/images", StaticFiles(directory=images_path), name="images")
 
 mcp = FastApiMCP(
     app,
-    name="SQLBot MCP Server",
-    description="SQLBot MCP Server",
+    name="DataMate MCP Server",
+    description="DataMate MCP Server",
     describe_all_responses=True,
     describe_full_response_schema=True,
     include_operations=["get_datasource_list", "get_model_list", "mcp_question", "mcp_start", "mcp_assistant"]
@@ -104,7 +130,7 @@ app.add_exception_handler(Exception, exception_handler.global_exception_handler)
 
 mcp.setup_server()
 
-sqlbot_xpack.init_fastapi_app(app)
+# sqlbot_xpack.init_fastapi_app(app)  # 商业扩展包
 if __name__ == "__main__":
     import uvicorn
 

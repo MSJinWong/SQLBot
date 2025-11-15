@@ -76,7 +76,7 @@
                   <div class="tips-page">
                     {{
                       t('system.screen_customization_supported', {
-                        msg: loginForm.name || 'SQLBot',
+                        msg: loginForm.name || 'DataMate',
                       })
                     }}
                   </div>
@@ -183,35 +183,10 @@
                   <div class="tips-page">
                     {{
                       t('system.screen_customization_settings', {
-                        msg: loginForm.name || 'SQLBot',
+                        msg: loginForm.name || 'DataMate',
                       })
                     }}
                   </div>
-                </div>
-                <div class="config-list">
-                  <el-checkbox
-                    v-model="topForm.showDoc"
-                    true-value="0"
-                    false-value="1"
-                    :label="$t('system.help_documentation')"
-                  />
-                  <div class="doc-input">
-                    <el-input
-                      v-model="topForm.help"
-                      style="width: 100%"
-                      :placeholder="
-                        $t('datasource.please_enter') +
-                        $t('common.empty') +
-                        $t('system.help_documentation')
-                      "
-                    />
-                  </div>
-                  <el-checkbox
-                    v-model="topForm.showAbout"
-                    true-value="0"
-                    false-value="1"
-                    :label="$t('system.show_about')"
-                  />
                 </div>
               </div>
             </div>
@@ -293,7 +268,7 @@ const changedItemArray = ref<ConfigItem[]>([])
 
 const loginFormRef = ref<FormInstance>()
 const defaultLoginForm = reactive<LoginForm>({
-  name: 'SQLBot',
+  name: 'DataMate',
   slogan: t('common.intelligent_questioning_platform'),
   foot: 'false',
   showSlogan: '0',

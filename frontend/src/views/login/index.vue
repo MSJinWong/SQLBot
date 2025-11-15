@@ -1,24 +1,12 @@
 <template>
-  <div
-    v-if="showLoading"
-    v-loading="true"
-    :element-loading-text="t('qa.loading')"
-    class="xpack-login-handler-mask"
-    element-loading-background="#F5F6F7"
-  ></div>
-
-  <div class="login-container" :class="{ 'hide-login-container': showLoading }">
+  <div class="login-container">
     <div class="login-left">
       <img :src="bg" alt="" />
     </div>
     <div class="login-content">
       <div class="login-right">
         <div class="login-logo-icon">
-          <img v-if="loginBg" height="52" :src="loginBg" alt="" />
-          <el-icon v-else size="52"
-            ><custom_small v-if="appearanceStore.themeColor !== 'default'"></custom_small>
-            <LOGO_fold v-else></LOGO_fold
-          ></el-icon>
+          <img height="52" src="/datamate.png" alt="DataMate" />
           <span style="margin-left: 14px; font-size: 34px; font-weight: 900; color: #485559">{{
             appearanceStore.name
           }}</span>
@@ -60,11 +48,6 @@
               }}</el-button>
             </el-form-item>
           </el-form>
-          <Handler
-            ref="xpackLoginHandler"
-            v-model:loading="showLoading"
-            jsname="L2NvbXBvbmVudC9sb2dpbi9IYW5kbGVy"
-          />
         </div>
       </div>
     </div>
@@ -76,19 +59,14 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useI18n } from 'vue-i18n'
-import custom_small from '@/assets/svg/logo-custom_small.svg'
-import LOGO_fold from '@/assets/LOGO-fold.svg'
 import login_image from '@/assets/embedded/login_image.png'
 import { useAppearanceStoreWithOut } from '@/stores/appearance'
 import loginImage from '@/assets/blue/login-image_blue.png'
-import Handler from './xpack/Handler.vue'
 
-const showLoading = ref(true)
 const router = useRouter()
 const userStore = useUserStore()
 const appearanceStore = useAppearanceStoreWithOut()
 const { t } = useI18n()
-const xpackLoginHandler = ref<any>(null)
 const loginForm = ref({
   username: '',
   password: '',
@@ -96,10 +74,6 @@ const loginForm = ref({
 
 const bg = computed(() => {
   return appearanceStore.getBg || (appearanceStore.isBlue ? loginImage : login_image)
-})
-
-const loginBg = computed(() => {
-  return appearanceStore.getLogin
 })
 
 const rules = {

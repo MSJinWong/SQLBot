@@ -59,7 +59,7 @@ export const useAppearanceStore = defineStore('appearanceStore', {
       login: '',
       slogan: '',
       web: '',
-      name: 'SQLBot',
+      name: 'DataMate',
       foot: 'false',
       footContent: '',
       loaded: false,
@@ -250,13 +250,7 @@ export const useAppearanceStore = defineStore('appearanceStore', {
       // if (!isDataEaseBi) {
       //   document.title = ''
       // }
-      const obj = LicenseGenerator.getLicense()
-      if (obj?.status !== 'valid') {
-        setCurrentColor('#1CBA90')
-        document.title = 'SQLBot'
-        setLinkIcon()
-        return
-      }
+      // 开源版本：直接使用默认外观设置
       const resData = await request.get('/system/appearance/ui')
       this.loaded = true
       if (!resData?.length) {
@@ -297,8 +291,8 @@ export const useAppearanceStore = defineStore('appearanceStore', {
         document.title = this.name
         setTitle(this.name)
       } else {
-        document.title = 'SQLBot'
-        setTitle('SQLBot')
+        document.title = 'DataMate'
+        setTitle('DataMate')
       }
       setLinkIcon(this.web)
     },

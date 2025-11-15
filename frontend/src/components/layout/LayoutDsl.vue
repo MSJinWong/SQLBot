@@ -1,10 +1,8 @@
 <script lang="ts" setup>
 import { ref, computed, onUnmounted } from 'vue'
 import Menu from './Menu.vue'
-import custom_small from '@/assets/svg/logo-custom_small.svg'
 import Workspace from './Workspace.vue'
 import Person from './Person.vue'
-import LOGO_fold from '@/assets/LOGO-fold.svg'
 import icon_moments_categories_outlined from '@/assets/svg/icon_moments-categories_outlined.svg'
 import icon_side_fold_outlined from '@/assets/svg/icon_side-fold_outlined.svg'
 import icon_side_expand_outlined from '@/assets/svg/icon_side-expand_outlined.svg'
@@ -19,9 +17,6 @@ const appearanceStore = useAppearanceStoreWithOut()
 let time: any
 onUnmounted(() => {
   clearTimeout(time)
-})
-const loginBg = computed(() => {
-  return appearanceStore.getLogin
 })
 const handleCollapseChange = (val: any = true) => {
   collapseCopy.value = val
@@ -61,135 +56,40 @@ const showSysmenu = computed(() => {
       <template v-if="showSysmenu">
         <div class="sys-management" @click="toUserIndex">
           <img
-            v-if="loginBg"
             :style="{ marginLeft: collapse ? '5px' : 0 }"
             height="30"
             width="30"
-            :src="loginBg"
+            src="/datamate.png"
             :class="!collapse && 'collapse-icon'"
-            alt=""
+            alt="DataMate"
             @click="toChatIndex"
           />
-          <custom_small
-            v-else-if="appearanceStore.themeColor !== 'default'"
-            :style="{ marginLeft: collapse ? '5px' : 0 }"
-            :class="!collapse && 'collapse-icon'"
-          ></custom_small>
-          <LOGO_fold
-            v-else
-            :style="{ marginLeft: collapse ? '5px' : 0 }"
-            :class="!collapse && 'collapse-icon'"
-          ></LOGO_fold>
           <span v-if="!collapse">{{ $t('training.system_management') }}</span>
         </div>
       </template>
       <template v-else>
-        <template v-if="appearanceStore.isBlue">
+        <img
+          v-if="collapse"
+          style="margin: 0 0 6px 5px; cursor: pointer"
+          height="30"
+          width="30"
+          src="/datamate.png"
+          alt="DataMate"
+          @click="toChatIndex"
+        />
+        <div v-else class="default-sqlbot">
           <img
-            v-if="loginBg && collapse"
-            style="margin: 0 0 6px 5px; cursor: pointer"
             height="30"
             width="30"
-            :src="loginBg"
-            alt=""
+            src="/datamate.png"
+            alt="DataMate"
+            class="collapse-icon"
             @click="toChatIndex"
           />
-          <div v-else-if="loginBg && !collapse" class="default-sqlbot">
-            <img
-              height="30"
-              width="30"
-              :src="loginBg"
-              alt=""
-              class="collapse-icon"
-              @click="toChatIndex"
-            />
-            <span style="max-width: 150px" :title="appearanceStore.name" class="ellipsis">{{
-              appearanceStore.name
-            }}</span>
-          </div>
-          <custom_small
-            v-else-if="collapse"
-            :style="{ marginLeft: collapse ? '5px' : 0 }"
-            :class="!collapse && 'collapse-icon'"
-          ></custom_small>
-
-          <div v-else class="default-sqlbot">
-            <custom_small class="collapse-icon"></custom_small>
-            <span style="max-width: 150px" :title="appearanceStore.name" class="ellipsis">{{
-              appearanceStore.name
-            }}</span>
-          </div>
-        </template>
-        <template v-else-if="appearanceStore.themeColor === 'custom'">
-          <img
-            v-if="loginBg && collapse"
-            style="margin: 0 0 6px 5px; cursor: pointer"
-            height="30"
-            width="30"
-            :src="loginBg"
-            alt=""
-            @click="toChatIndex"
-          />
-          <div v-else-if="loginBg && !collapse" class="default-sqlbot">
-            <img
-              height="30"
-              width="30"
-              :src="loginBg"
-              alt=""
-              class="collapse-icon"
-              @click="toChatIndex"
-            />
-            <span style="max-width: 150px" :title="appearanceStore.name" class="ellipsis">{{
-              appearanceStore.name
-            }}</span>
-          </div>
-          <custom_small
-            v-else-if="collapse"
-            style="margin: 0 0 6px 5px; cursor: pointer"
-            @click="toChatIndex"
-          ></custom_small>
-          <div v-else class="default-sqlbot">
-            <custom_small class="collapse-icon"></custom_small>
-            <span style="max-width: 150px" :title="appearanceStore.name" class="ellipsis">{{
-              appearanceStore.name
-            }}</span>
-          </div>
-        </template>
-        <template v-else>
-          <img
-            v-if="loginBg && collapse"
-            style="margin: 0 0 6px 5px; cursor: pointer"
-            height="30"
-            width="30"
-            :src="loginBg"
-            alt=""
-            @click="toChatIndex"
-          />
-          <div v-else-if="loginBg && !collapse" class="default-sqlbot">
-            <img
-              height="30"
-              width="30"
-              :src="loginBg"
-              alt=""
-              class="collapse-icon"
-              @click="toChatIndex"
-            />
-            <span style="max-width: 150px" :title="appearanceStore.name" class="ellipsis">{{
-              appearanceStore.name
-            }}</span>
-          </div>
-          <LOGO_fold
-            v-else-if="collapse"
-            style="margin: 0 0 6px 5px; cursor: pointer"
-            @click="toChatIndex"
-          ></LOGO_fold>
-          <div v-else class="default-sqlbot">
-            <LOGO_fold class="collapse-icon" @click="toChatIndex"></LOGO_fold>
-            <span style="max-width: 150px" :title="appearanceStore.name" class="ellipsis">{{
-              appearanceStore.name
-            }}</span>
-          </div>
-        </template>
+          <span style="max-width: 150px" :title="appearanceStore.name" class="ellipsis">{{
+            appearanceStore.name
+          }}</span>
+        </div>
       </template>
       <Workspace v-if="!showSysmenu" :collapse="collapse"></Workspace>
       <Menu :collapse="collapseCopy"></Menu>

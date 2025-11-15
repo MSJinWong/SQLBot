@@ -4,8 +4,9 @@ from typing import List, Optional
 
 from fastapi import HTTPException
 from sqlalchemy import and_, text
-from sqlbot_xpack.permissions.models.ds_rules import DsRules
 from sqlmodel import select
+
+from apps.datasource.models.ds_permission import DsRules
 
 from apps.datasource.crud.permission import get_column_permission_fields, get_row_permission_filters, is_normal_user
 from apps.datasource.embedding.table_embedding import calc_table_embedding

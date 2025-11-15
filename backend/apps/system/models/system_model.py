@@ -1,5 +1,5 @@
-   
 from typing import Optional
+from sqlalchemy import Column, Integer, String
 from sqlmodel import BigInteger, Field, Text, SQLModel
 from common.core.models import SnowflakeBase
 from common.core.schemas import BaseCreatorDTO
@@ -68,3 +68,24 @@ class AuthenticationModel(SnowflakeBase, AuthenticationBaseModel, table=True):
     create_time: Optional[int] = Field(default=0, sa_type=BigInteger())
     enable: bool = Field(default=False, nullable=False)
     valid: bool = Field(default=False, nullable=False)
+
+
+class SysArg(SQLModel, table=True):
+    """系统参数表 - 用于存储外观设置等系统配置"""
+    __tablename__ = "sys_arg"
+
+    id: Optional[int] = Field(
+        sa_column=Column(BigInteger, primary_key=True, nullable=False, comment='ID')
+    )
+    pkey: str = Field(
+        sa_column=Column(String(255), nullable=False, comment='pkey')
+    )
+    pval: Optional[str] = Field(
+        sa_column=Column(String(255), nullable=True, comment='pval')
+    )
+    ptype: str = Field(
+        sa_column=Column(String(255), nullable=False, server_default='str', comment='str or file')
+    )
+    sort_no: int = Field(
+        sa_column=Column(Integer, nullable=False, server_default='1', comment='sort_no')
+    )

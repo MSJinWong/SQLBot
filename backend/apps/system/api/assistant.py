@@ -5,8 +5,9 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
-from sqlbot_xpack.file_utils import SQLBotFileUtils
 from sqlmodel import select
+
+from common.utils.file_utils import SQLBotFileUtils
 
 from apps.system.crud.assistant import get_assistant_info
 from apps.system.crud.assistant_manage import dynamic_upgrade_cors, save

@@ -3,7 +3,6 @@ import aboutBg from '@/assets/embedded/LOGO-about.png'
 
 import { ref, reactive, onMounted } from 'vue'
 import type { F2CLicense } from './index.ts'
-import { licenseApi } from '@/api/license'
 import { ElMessage } from 'element-plus-secondary'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/stores/user.ts'
@@ -34,20 +33,22 @@ onMounted(() => {
 })
 
 const initVersion = () => {
-  licenseApi.version().then((res) => {
-    build.value = res
-  })
+  // Open source version - use static version info
+  build.value = 'DataMate v1.0.0 (Open Source)'
 }
-const beforeUpload = (file: any) => {
-  importLic(file)
+const beforeUpload = () => {
+  importLic()
   return false
 }
 
 const getLicenseInfo = () => {
-  validateHandler((res: any) => {
-    const info = getLicense(res)
-    setLicense(info)
-  })
+  // Open source version - use static license info
+  const stubLicenseData = {
+    status: 'invalid',
+    license: null,
+  }
+  const info = getLicense(stubLicenseData)
+  setLicense(info)
 }
 const setLicense = (lic: any) => {
   const lic_obj = {
@@ -74,18 +75,12 @@ const removeDistributeModule = () => {
   const key = 'xpack-model-distributed'
   localStorage.removeItem(key)
 }
-const importLic = (file: any) => {
+const importLic = () => {
   removeDistributeModule()
-  const reader = new FileReader()
-  reader.onload = function (e: any) {
-    const licKey = e.target.result
-    update(licKey)
-  }
-  reader.readAsText(file)
+  // Open source version - license import not supported
+  update()
 }
-const validateHandler = (success: any) => {
-  licenseApi.validate().then(success)
-}
+
 const getLicense = (result: any) => {
   if (result.status === 'valid') {
     tipsSuffix.value = result?.license?.edition === 'Embedded' ? '套' : '个账号'
@@ -102,19 +97,10 @@ const getLicense = (result: any) => {
     isv: result.license ? result.license.isv : '',
   }
 }
-const update = (licKey: string) => {
-  const param = { license_key: licKey }
-  loading.value = true
-  licenseApi.update(param).then((response: any) => {
-    loading.value = false
-    if (response.status === 'valid') {
-      ElMessage.success(t('about.update_success'))
-      const info = getLicense(response)
-      setLicense(info)
-    } else {
-      ElMessage.warning(response.message)
-    }
-  })
+const update = () => {
+  // Open source version - license update not supported
+  loading.value = false
+  ElMessage.warning(t('about.license_not_supported_in_open_source'))
 }
 
 const open = () => {

@@ -1,9 +1,11 @@
 import { request } from '@/utils/request'
+import { encrypt } from '@/utils/crypto'
+
 export const AuthApi = {
   login: (credentials: { username: string; password: string }) => {
     const entryCredentials = {
-      username: LicenseGenerator.sqlbotEncrypt(credentials.username),
-      password: LicenseGenerator.sqlbotEncrypt(credentials.password),
+      username: encrypt(credentials.username),
+      password: encrypt(credentials.password),
     }
     return request.post<{
       data: any

@@ -4,7 +4,7 @@
       class="main-menu"
       :class="{ 'main-menu-sidebar': !topLayout, 'main-menu-topbar': topLayout }"
     >
-      <div class="logo">SQLBot</div>
+      <div class="logo">DataMate</div>
 
       <!-- <div v-if="!topLayout || !showSubmenu"
            :class="{ 'workspace-area': !topLayout, 'topbar-workspace-area': topLayout }">
@@ -117,7 +117,6 @@
                   <el-dropdown-item>
                     <language-selector />
                   </el-dropdown-item>
-                  <el-dropdown-item @click="toAbout">About</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
