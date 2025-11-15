@@ -36,6 +36,8 @@ from apps.datasource.embedding.ds_embedding import get_ds_embedding
 from apps.datasource.models.datasource import CoreDatasource
 from apps.db.db import exec_sql, get_version, check_connection
 from apps.system.crud.assistant import AssistantOutDs, AssistantOutDsFactory, get_assistant_ds
+from apps.system.crud.custom_prompt import get_custom_prompt_template
+from apps.system.models.system_model import CustomPromptTypeEnum
 from apps.system.schemas.system_schema import AssistantOutDsSchema
 from apps.terminology.curd.terminology import get_terminology_template
 from common.core.config import settings
@@ -223,8 +225,10 @@ class LLMService:
         ds_id = self.ds.id if isinstance(self.ds, CoreDatasource) else None
         self.chat_question.terminologies = get_terminology_template(_session, self.chat_question.question,
                                                                     self.current_user.oid, ds_id)
-        # 开源版本：不支持自定义提示词
-        # self.chat_question.custom_prompt = []
+        # 开源版本：支持自定义提示词
+        self.chat_question.custom_prompt = get_custom_prompt_template(
+            _session, self.current_user.oid, CustomPromptTypeEnum.ANALYSIS, ds_id
+        )
 
         analysis_msg.append(SystemMessage(content=self.chat_question.analysis_sys_question()))
         analysis_msg.append(HumanMessage(content=self.chat_question.analysis_user_question()))
@@ -270,9 +274,11 @@ class LLMService:
         data = get_chat_chart_data(_session, self.record.id)
         self.chat_question.data = orjson.dumps(data.get('data')).decode()
 
-        # 开源版本：不支持自定义提示词
-        # ds_id = self.ds.id if isinstance(self.ds, CoreDatasource) else None
-        # self.chat_question.custom_prompt = []
+        # 开源版本：支持自定义提示词
+        ds_id = self.ds.id if isinstance(self.ds, CoreDatasource) else None
+        self.chat_question.custom_prompt = get_custom_prompt_template(
+            _session, self.current_user.oid, CustomPromptTypeEnum.PREDICT_DATA, ds_id
+        )
 
         predict_msg: List[Union[BaseMessage, dict[str, Any]]] = []
         predict_msg.append(SystemMessage(content=self.chat_question.predict_sys_question()))
@@ -506,8 +512,10 @@ class LLMService:
             else:
                 self.chat_question.data_training = get_training_template(_session, self.chat_question.question,
                                                                          oid, ds_id)
-            # 开源版本：不支持自定义提示词
-            # self.chat_question.custom_prompt = []
+            # 开源版本：支持自定义提示词
+            self.chat_question.custom_prompt = get_custom_prompt_template(
+                _session, oid, CustomPromptTypeEnum.GENERATE_SQL, ds_id
+            )
 
             self.init_messages()
 
@@ -906,8 +914,10 @@ class LLMService:
                 else:
                     self.chat_question.data_training = get_training_template(_session, self.chat_question.question,
                                                                              oid, ds_id)
-                # 开源版本：不支持自定义提示词
-                # self.chat_question.custom_prompt = []
+                # 开源版本：支持自定义提示词
+                self.chat_question.custom_prompt = get_custom_prompt_template(
+                    _session, oid, CustomPromptTypeEnum.GENERATE_SQL, ds_id
+                )
                 self.init_messages()
 
             # return id

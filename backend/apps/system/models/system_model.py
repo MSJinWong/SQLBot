@@ -1,8 +1,18 @@
+from datetime import datetime
+from enum import Enum
 from typing import Optional
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text as SAText
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import BigInteger, Field, Text, SQLModel
 from common.core.models import SnowflakeBase
 from common.core.schemas import BaseCreatorDTO
+
+
+class CustomPromptTypeEnum(str, Enum):
+    """自定义提示词类型枚举"""
+    GENERATE_SQL = "GENERATE_SQL"
+    ANALYSIS = "ANALYSIS"
+    PREDICT_DATA = "PREDICT_DATA"
 
 
 class AiModelBase:
@@ -88,4 +98,32 @@ class SysArg(SQLModel, table=True):
     )
     sort_no: int = Field(
         sa_column=Column(Integer, nullable=False, server_default='1', comment='sort_no')
+    )
+
+
+class CustomPrompt(SQLModel, table=True):
+    """自定义提示词表"""
+    __tablename__ = "custom_prompt"
+
+    id: Optional[int] = Field(
+        sa_column=Column(BigInteger, primary_key=True, nullable=False)
+    )
+    oid: Optional[int] = Field(
+        sa_column=Column(BigInteger, nullable=True)
+    )
+    type: Optional[CustomPromptTypeEnum] = Field(
+        sa_column=Column(String(20), nullable=True)
+    )
+    create_time: Optional[datetime] = Field(
+        sa_column=Column(DateTime(timezone=False), nullable=True)
+    )
+    name: Optional[str] = Field(max_length=255, nullable=True)
+    prompt: Optional[str] = Field(
+        sa_column=Column(SAText, nullable=True)
+    )
+    specific_ds: Optional[bool] = Field(
+        sa_column=Column(Boolean, nullable=True)
+    )
+    datasource_ids: Optional[str] = Field(
+        sa_column=Column(JSONB, nullable=True)
     )
