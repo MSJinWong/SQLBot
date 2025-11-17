@@ -17,9 +17,9 @@ import EmbeddedPage from '@/views/embedded/page.vue'
 import Member from '@/views/system/member/index.vue'
 import Professional from '@/views/system/professional/index.vue'
 import Training from '@/views/system/training/index.vue'
-import Prompt from '@/views/system/prompt/index.vue'
-import Appearance from '@/views/system/appearance/index.vue'
-import Authentication from '@/views/system/authentication/index.vue'
+// import Prompt from '@/views/system/prompt/index.vue'
+// import Appearance from '@/views/system/appearance/index.vue'
+// import Authentication from '@/views/system/authentication/index.vue'
 import Permission from '@/views/system/permission/index.vue'
 import User from '@/views/system/user/User.vue'
 import Workspace from '@/views/system/workspace/index.vue'
@@ -122,12 +122,12 @@ export const routes = [
         component: Training,
         meta: { title: t('training.data_training') },
       },
-      {
-        path: '/set/prompt',
-        name: 'prompt',
-        component: Prompt,
-        meta: { title: t('prompt.customize_prompt_words') },
-      },
+      // {
+      //   path: '/set/prompt',
+      //   name: 'prompt',
+      //   component: Prompt,
+      //   meta: { title: t('prompt.customize_prompt_words') },
+      // },
     ],
   },
   {
@@ -184,26 +184,26 @@ export const routes = [
           iconDeActive: 'noEmbedded',
         },
       },
-      {
-        path: 'setting',
-        meta: { title: t('system.system_settings'), iconActive: 'set', iconDeActive: 'noSet' },
-        redirect: 'system_/appearance',
-        name: 'setting',
-        children: [
-          {
-            path: 'appearance',
-            name: 'appearance',
-            component: Appearance,
-            meta: { title: t('system.appearance_settings') },
-          },
-          {
-            path: 'authentication',
-            name: 'authentication',
-            component: Authentication,
-            meta: { title: t('system.authentication_settings') },
-          },
-        ],
-      },
+      // {
+      //   path: 'setting',
+      //   meta: { title: t('system.system_settings'), iconActive: 'set', iconDeActive: 'noSet' },
+      //   redirect: 'system_/appearance',
+      //   name: 'setting',
+      //   children: [
+      //     {
+      //       path: 'appearance',
+      //       name: 'appearance',
+      //       component: Appearance,
+      //       meta: { title: t('system.appearance_settings') },
+      //     },
+      //     {
+      //       path: 'authentication',
+      //       name: 'authentication',
+      //       component: Authentication,
+      //       meta: { title: t('system.authentication_settings') },
+      //     },
+      //   ],
+      // },
     ],
   },
 

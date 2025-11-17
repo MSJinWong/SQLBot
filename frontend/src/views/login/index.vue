@@ -1,8 +1,5 @@
 <template>
   <div class="login-container">
-    <div class="login-left">
-      <img :src="bg" alt="" />
-    </div>
     <div class="login-content">
       <div class="login-right">
         <div class="login-logo-icon">
@@ -55,13 +52,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useI18n } from 'vue-i18n'
-import login_image from '@/assets/embedded/login_image.png'
 import { useAppearanceStoreWithOut } from '@/stores/appearance'
-import loginImage from '@/assets/blue/login-image_blue.png'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -72,9 +67,7 @@ const loginForm = ref({
   password: '',
 })
 
-const bg = computed(() => {
-  return appearanceStore.getBg || (appearanceStore.isBlue ? loginImage : login_image)
-})
+
 
 const rules = {
   username: [{ required: true, message: t('common.your_account_email_address'), trigger: 'blur' }],
@@ -103,21 +96,10 @@ const submitForm = () => {
   align-items: center;
   justify-content: center;
 
-  .login-left {
-    display: flex;
-    height: 100%;
-    width: 40%;
-    img {
-      height: 100%;
-      max-width: 100%;
-    }
-  }
-
   .login-content {
     display: flex;
     align-items: center;
     justify-content: center;
-    flex: 1;
 
     .login-right {
       display: flex;
