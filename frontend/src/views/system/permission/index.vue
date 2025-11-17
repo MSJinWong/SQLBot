@@ -59,15 +59,19 @@ const fieldListOptions = ref<any[]>([])
 const dsListOptions = ref<any[]>([])
 const ruleListWithSearch = computed(() => {
   if (!keywords.value) return ruleList.value
-  return ruleList.value.filter((ele) =>
-    ele.name.toLowerCase().includes(keywords.value.toLowerCase())
-  )
+  const kw = keywords.value.toLowerCase()
+  return ruleList.value.filter((ele) => {
+    const name = (ele?.name ?? '').toString().toLowerCase()
+    return name.includes(kw)
+  })
 })
 const tableColumnData = computed<any[]>(() => {
   if (!searchColumn.value) return columnForm.permissions
-  return columnForm.permissions.filter((ele) =>
-    ele.field_name.toLowerCase().includes(searchColumn.value.toLowerCase())
-  )
+  const kw = searchColumn.value.toLowerCase()
+  return columnForm.permissions.filter((ele) => {
+    const fieldName = (ele?.field_name ?? '').toString().toLowerCase()
+    return fieldName.includes(kw)
+  })
 })
 provide('filedList', fieldListOptions)
 const setDrawerTitle = () => {
@@ -162,7 +166,7 @@ const getDsList = (row: any) => {
       })
     })
     .finally(() => {
-      if (!row && columnForm.type === 'row') {
+      if (!row && columnForm.type === 'row' && authTreeRef.value) {
         authTreeRef.value.init(columnForm.expression_tree)
       }
     })
@@ -278,7 +282,7 @@ const handleEditeTable = (val: any) => {
       })
     })
     .finally(() => {
-      if (columnForm.type !== 'row') return
+      if (columnForm.type !== 'row' || !authTreeRef.value) return
       authTreeRef.value.init(columnForm.expression_tree)
     })
 }
@@ -579,9 +583,9 @@ const columnRules = {
           <Card
             :id="ele.id"
             :key="ele.id"
-            :name="ele.name"
-            :type="ele.users.length"
-            :num="ele.permissions.length"
+            :name="ele.name || ''"
+            :type="(ele.users || []).length"
+            :num="(ele.permissions || []).length"
             @edit="handleEditRule(ele)"
             @del="deleteHandler(ele)"
             @set-user="setUser(ele)"
