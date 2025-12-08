@@ -1,45 +1,94 @@
 <script lang="ts" setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onBeforeMount } from 'vue'
 import { ElMessage, ElLoading } from 'element-plus-secondary'
 import { useI18n } from 'vue-i18n'
-import type { FormInstance, FormRules } from 'element-plus-secondary'
+import {
+  type FormInstance,
+  type FormRules,
+  ElInput,
+  ElRadio,
+  ElRadioGroup,
+  ElSelect,
+} from 'element-plus-secondary'
 import { request } from '@/utils/request'
+import { getSQLBotAddr } from '@/utils/utils'
+
 const { t } = useI18n()
 const dialogVisible = ref(false)
 const loadingInstance = ref<ReturnType<typeof ElLoading.service> | null>(null)
 const oauth2Form = ref<FormInstance>()
-interface Oauth2Form {
-  authEndpoint?: string
-  tokenEndpoint?: string
-  userInfoEndpoint?: string
-  scope?: string
-  clientId?: string
-  clientSecret?: string
-  redirectUri?: string
-  mapping?: string
-  authMethod?: string
-}
+const id = ref<number | null>(null)
+
 const state = reactive({
-  form: reactive<Oauth2Form>({
-    tokenEndpoint: '',
-    userInfoEndpoint: '',
+  form: reactive<any>({
+    authorize_url: '',
+    token_url: '',
+    userinfo_url: '',
+    revoke_url: '',
     scope: '',
-    clientId: '',
-    clientSecret: '',
-    redirectUri: '',
+    client_id: '',
+    client_secret: '',
+    redirect_url: getSQLBotAddr(),
+    token_auth_method: 'basic',
+    userinfo_auth_method: 'header',
+    logout_redirect_url: '',
     mapping: '',
-    authMethod: '0',
   }),
 })
+const componentMap = {
+  'el-input': ElInput,
+  'el-select': ElSelect,
+  'el-radio-group': ElRadioGroup,
+  'el-radio': ElRadio,
+} as any
+
+const getComponent = (name: string) => {
+  return componentMap[name]
+}
+const form_config_list = ref<any[]>([
+  /* {
+    label: '自定义配置',
+    field: 'authMethod',
+    value: '',
+    // component: resolveComponent('ElInput') as typeof ElInput,
+    component: 'el-input',
+    attrs: {
+      placeholder: t('common.please_input') + 123,
+    },
+    validator: [
+      {
+        required: true,
+        message: t('common.require'),
+        trigger: 'blur',
+      },
+      {
+        min: 10,
+        max: 255,
+        message: t('common.input_limit', [10, 255]),
+        trigger: 'blur',
+      },
+      { required: true, pattern: /^[a-zA-Z][a-zA-Z0-9_]{3,15}$/, message: '', trigger: 'blur' },
+    ],
+  }, */
+])
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 const validateUrl = (rule, value, callback) => {
   const reg = new RegExp(/(http|https):\/\/([\w.]+\/?)\S*/)
   if (!reg.test(value)) {
-    callback(new Error(t('system.incorrect_please_re_enter_de')))
+    callback(new Error(t('authentication.incorrect_please_re_enter')))
   } else {
     callback()
   }
+}
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
+const validateCbUrl = (rule, value, callback) => {
+  const addr = getSQLBotAddr()
+  if (value === addr || `${value}/` === addr) {
+    callback()
+  }
+  callback(new Error(t('authentication.callback_domain_name_error')))
 }
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
@@ -50,12 +99,13 @@ const validateMapping = (rule, value, callback) => {
   try {
     JSON.parse(value)
   } catch (e) {
-    callback(new Error(t('system.in_json_format')))
+    console.error(e)
+    callback(new Error(t('authentication.in_json_format')))
   }
   callback()
 }
 const rule = reactive<FormRules>({
-  authEndpoint: [
+  authorize_url: [
     {
       required: true,
       message: t('common.require'),
@@ -64,12 +114,12 @@ const rule = reactive<FormRules>({
     {
       min: 10,
       max: 255,
-      message: t('commons.input_limit', [10, 255]),
+      message: t('common.input_limit', [10, 255]),
       trigger: 'blur',
     },
     { required: true, validator: validateUrl, trigger: 'blur' },
   ],
-  tokenEndpoint: [
+  token_url: [
     {
       required: true,
       message: t('common.require'),
@@ -78,12 +128,12 @@ const rule = reactive<FormRules>({
     {
       min: 10,
       max: 255,
-      message: t('commons.input_limit', [10, 255]),
+      message: t('common.input_limit', [10, 255]),
       trigger: 'blur',
     },
     { required: true, validator: validateUrl, trigger: 'blur' },
   ],
-  userInfoEndpoint: [
+  userinfo_url: [
     {
       required: true,
       message: t('common.require'),
@@ -92,7 +142,7 @@ const rule = reactive<FormRules>({
     {
       min: 10,
       max: 255,
-      message: t('commons.input_limit', [10, 255]),
+      message: t('common.input_limit', [10, 255]),
       trigger: 'blur',
     },
     { required: true, validator: validateUrl, trigger: 'blur' },
@@ -100,18 +150,13 @@ const rule = reactive<FormRules>({
 
   scope: [
     {
-      required: true,
-      message: t('common.require'),
-      trigger: 'blur',
-    },
-    {
       min: 2,
       max: 50,
-      message: t('commons.input_limit', [2, 50]),
+      message: t('common.input_limit', [2, 50]),
       trigger: 'blur',
     },
   ],
-  clientId: [
+  client_id: [
     {
       required: true,
       message: t('common.require'),
@@ -120,11 +165,11 @@ const rule = reactive<FormRules>({
     {
       min: 2,
       max: 255,
-      message: t('commons.input_limit', [2, 255]),
+      message: t('common.input_limit', [2, 255]),
       trigger: 'blur',
     },
   ],
-  clientSecret: [
+  client_secret: [
     {
       required: true,
       message: t('common.require'),
@@ -133,11 +178,11 @@ const rule = reactive<FormRules>({
     {
       min: 5,
       max: 255,
-      message: t('commons.input_limit', [5, 255]),
+      message: t('common.input_limit', [5, 255]),
       trigger: 'blur',
     },
   ],
-  redirectUri: [
+  redirect_url: [
     {
       required: true,
       message: t('common.require'),
@@ -146,10 +191,10 @@ const rule = reactive<FormRules>({
     {
       min: 10,
       max: 255,
-      message: t('commons.input_limit', [10, 255]),
+      message: t('common.input_limit', [10, 255]),
       trigger: 'blur',
     },
-    { required: true, validator: validateUrl, trigger: 'blur' },
+    { required: true, validator: validateCbUrl, trigger: 'blur' },
   ],
   mapping: [{ required: false, validator: validateMapping, trigger: 'blur' }],
 })
@@ -157,15 +202,16 @@ const rule = reactive<FormRules>({
 const edit = () => {
   showLoading()
   request
-    .get('/setting/authentication/info/oauth2')
+    .get('/system/authentication/4')
     .then((res) => {
-      const resData = res as Partial<Oauth2Form>
-      ;(Object.keys(resData) as (keyof Oauth2Form)[]).forEach((key) => {
-        const value = resData[key]
-        if (value !== undefined) {
-          state.form[key] = value as any
-        }
-      })
+      if (!res?.config) {
+        return
+      }
+      id.value = res.id
+      const data = JSON.parse(res.config)
+      for (const key in data) {
+        state.form[key] = data[key] as any
+      }
     })
     .finally(() => {
       closeLoading()
@@ -179,7 +225,15 @@ const submitForm = async (formEl: FormInstance | undefined) => {
   await formEl.validate((valid) => {
     if (valid) {
       const param = { ...state.form }
-      const method = request.post('/setting/authentication/save/oauth2', param)
+      const data = {
+        id: 4,
+        type: 4,
+        config: JSON.stringify(param),
+        name: 'oauth2',
+      }
+      const method = id.value
+        ? request.put('/system/authentication', data, { requestOptions: { silent: true } })
+        : request.post('/system/authentication', data, { requestOptions: { silent: true } })
       showLoading()
       method
         .then((res) => {
@@ -188,9 +242,16 @@ const submitForm = async (formEl: FormInstance | undefined) => {
             emits('saved')
             reset()
           }
-          closeLoading()
         })
-        .catch(() => {
+        .catch((e: any) => {
+          if (
+            e.message?.startsWith('sqlbot_authentication_connect_error') ||
+            e.response?.data?.startsWith('sqlbot_authentication_connect_error')
+          ) {
+            ElMessage.error(t('ds.connection_failed'))
+          }
+        })
+        .finally(() => {
           closeLoading()
         })
     }
@@ -200,6 +261,7 @@ const submitForm = async (formEl: FormInstance | undefined) => {
 const resetForm = (formEl: FormInstance | undefined) => {
   if (!formEl) return
   formEl.resetFields()
+  id.value = null
   dialogVisible.value = false
 }
 
@@ -217,16 +279,21 @@ const closeLoading = () => {
 }
 
 const validate = () => {
-  const url = '/setting/authentication/validate/oauth2'
-  const data = state.form
+  const url = '/system/authentication/status'
+  const config_data = state.form
+  const data = {
+    type: 4,
+    name: 'oauth2',
+    config: JSON.stringify(config_data),
+  }
   showLoading()
   request
-    .post(url, data)
+    .patch(url, data)
     .then((res) => {
-      if (res === 'true') {
-        ElMessage.success(t('commons.test_connect') + t('report.last_status_success'))
+      if (res) {
+        ElMessage.success(t('ds.connection_success'))
       } else {
-        ElMessage.error(t('commons.test_connect') + t('report.last_status_fail'))
+        ElMessage.error(t('ds.connection_failed'))
       }
     })
     .finally(() => {
@@ -238,12 +305,21 @@ const validate = () => {
 defineExpose({
   edit,
 })
+
+onBeforeMount(() => {
+  if (form_config_list.value?.length) {
+    form_config_list.value.forEach((item: any) => {
+      rule[item.field] = item.validator
+      state.form[item.field] = item.value
+    })
+  }
+})
 </script>
 
 <template>
   <el-drawer
     v-model="dialogVisible"
-    :title="t('system.oauth2_settings')"
+    :title="t('authentication.oauth2_settings')"
     modal-class="platform-info-drawer"
     size="600px"
     direction="rtl"
@@ -256,56 +332,96 @@ defineExpose({
       label-width="80px"
       label-position="top"
     >
-      <el-form-item :label="t('system.authorization_end_address')" prop="authEndpoint">
-        <el-input v-model="state.form.authEndpoint" :placeholder="t('common.please_input')" />
+      <el-form-item :label="t('authentication.authorize_url')" prop="authorize_url">
+        <el-input v-model="state.form.authorize_url" :placeholder="t('common.please_input')" />
       </el-form-item>
-      <el-form-item :label="t('system.token_end_address')" prop="tokenEndpoint">
-        <el-input v-model="state.form.tokenEndpoint" :placeholder="t('common.please_input')" />
+      <el-form-item :label="t('authentication.token_url')" prop="token_url">
+        <el-input v-model="state.form.token_url" :placeholder="t('common.please_input')" />
       </el-form-item>
-      <el-form-item :label="t('system.information_end_address')" prop="userInfoEndpoint">
-        <el-input v-model="state.form.userInfoEndpoint" :placeholder="t('common.please_input')" />
+      <el-form-item :label="t('authentication.userinfo_url')" prop="userinfo_url">
+        <el-input v-model="state.form.userinfo_url" :placeholder="t('common.please_input')" />
+      </el-form-item>
+      <el-form-item :label="t('authentication.revoke_url')" prop="revoke_url">
+        <el-input v-model="state.form.revoke_url" :placeholder="t('common.please_input')" />
       </el-form-item>
 
-      <el-form-item :label="t('system.connection_range')" prop="scope">
+      <el-form-item :label="t('authentication.scope')" prop="scope">
         <el-input v-model="state.form.scope" :placeholder="t('common.please_input')" />
       </el-form-item>
 
-      <el-form-item :label="t('system.client_id')" prop="clientId">
-        <el-input v-model="state.form.clientId" :placeholder="t('common.please_input')" />
+      <el-form-item :label="t('authentication.client_id')" prop="client_id">
+        <el-input v-model="state.form.client_id" :placeholder="t('common.please_input')" />
       </el-form-item>
 
-      <el-form-item :label="t('system.client_key')" prop="clientSecret">
+      <el-form-item :label="t('authentication.client_secret')" prop="client_secret">
         <el-input
-          v-model="state.form.clientSecret"
+          v-model="state.form.client_secret"
           type="password"
           show-password
           :placeholder="t('common.please_input')"
         />
       </el-form-item>
 
-      <el-form-item :label="t('system.callback_address')" prop="redirectUri">
-        <el-input v-model="state.form.redirectUri" :placeholder="t('common.please_input')" />
+      <el-form-item :label="t('authentication.redirect_url')" prop="redirect_url">
+        <el-input v-model="state.form.redirect_url" :placeholder="t('common.please_input')" />
       </el-form-item>
 
-      <el-form-item :label="t('system.field_mapping')" prop="mapping">
-        <el-input v-model="state.form.mapping" :placeholder="t('system.oauth2name')" />
+      <el-form-item :label="t('authentication.logout_redirect_url')" prop="logout_redirect_url">
+        <el-input
+          v-model="state.form.logout_redirect_url"
+          :placeholder="t('authentication.logout_redirect_url_placeholder')"
+        />
       </el-form-item>
 
-      <el-form-item :label="t('datasource.auth_method')" prop="authMethod">
+      <el-form-item :label="t('authentication.field_mapping')" prop="mapping">
+        <el-input
+          v-model="state.form.mapping"
+          :placeholder="t('authentication.oauth2_field_mapping_placeholder')"
+        />
+      </el-form-item>
+
+      <!-- <el-form-item :label="t('datasource.auth_method')" prop="authMethod">
         <el-radio-group v-model="state.form.authMethod">
           <el-radio label="0">Authorization Code</el-radio>
           <el-radio label="1">Client Secret Jwt</el-radio>
         </el-radio-group>
+      </el-form-item> -->
+
+      <el-form-item :label="t('authentication.token_auth_method')" prop="token_auth_method">
+        <el-radio-group v-model="state.form.token_auth_method">
+          <el-radio value="basic">Basic</el-radio>
+          <el-radio value="body">Body</el-radio>
+        </el-radio-group>
+      </el-form-item>
+
+      <el-form-item :label="t('authentication.userinfo_auth_method')" prop="userinfo_auth_method">
+        <el-radio-group v-model="state.form.userinfo_auth_method">
+          <el-radio value="header">Header</el-radio>
+          <el-radio value="query">Query</el-radio>
+        </el-radio-group>
+      </el-form-item>
+
+      <el-form-item
+        v-for="form_item in form_config_list"
+        :key="form_item.field"
+        :label="form_item.label"
+        :prop="form_item.field"
+      >
+        <component
+          :is="getComponent(form_item.component)"
+          v-model="state.form[form_item.field]"
+          v-bind="form_item.attrs"
+        />
       </el-form-item>
     </el-form>
     <template #footer>
       <span class="dialog-footer">
         <el-button secondary @click="resetForm(oauth2Form)">{{ t('common.cancel') }}</el-button>
-        <el-button secondary :disabled="!state.form.clientId" @click="validate">
-          {{ t('commons.test_connect') }}
+        <el-button secondary :disabled="!state.form.client_id" @click="validate">
+          {{ t('ds.test_connection') }}
         </el-button>
         <el-button type="primary" @click="submitForm(oauth2Form)">
-          {{ t('commons.save') }}
+          {{ t('common.save') }}
         </el-button>
       </span>
     </template>

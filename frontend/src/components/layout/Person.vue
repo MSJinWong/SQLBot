@@ -27,6 +27,7 @@ const name = computed(() => userStore.getName)
 const account = computed(() => userStore.getAccount)
 const currentLanguage = computed(() => userStore.getLanguage)
 const isAdmin = computed(() => userStore.isAdmin)
+const isLocalUser = computed(() => !userStore.getOrigin)
 const dialogVisible = ref(false)
 const aboutRef = ref()
 const languageList = computed(() => [
@@ -71,8 +72,9 @@ const savePwdHandler = () => {
   pwdFormRef.value?.submit()
 }
 const logout = async () => {
-  await userStore.logout()
-  router.push('/login')
+  if (!(await userStore.logout())) {
+    router.push('/login')
+  }
 }
 </script>
 
@@ -106,7 +108,7 @@ const logout = async () => {
           </el-icon>
           <div class="datasource-name">{{ $t('common.system_manage') }}</div>
         </div>
-        <div class="popover-item" @click="openPwd">
+        <div v-if="isLocalUser" class="popover-item" @click="openPwd">
           <el-icon size="16">
             <icon_key_outlined></icon_key_outlined>
           </el-icon>

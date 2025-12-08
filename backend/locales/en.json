@@ -11,7 +11,8 @@
   "i18n_login": {
     "account_pwd_error": "Incorrect account or password!",
     "no_associated_ws": "No associated workspace, {msg}",
-    "user_disable": "Account is disabled, {msg}"
+    "user_disable": "Account is disabled, {msg}",
+    "origin_error": "Invalid login method"
   },
   "i18n_user": {
     "account": "Account",
@@ -47,19 +48,77 @@
     "term_description": "Terminology Description",
     "effective_data_sources": "Effective Data Sources",
     "all_data_sources": "All Data Sources",
-    "synonyms": "Synonyms"
+    "synonyms": "Synonyms",
+    "term_name_template": "Terminology Name (Required)",
+    "term_description_template": "Terminology Description (Required)",
+    "effective_data_sources_template": "Effective Data Sources (Multiple supported, separated by \",\")",
+    "all_data_sources_template": "All Data Sources (Y: Apply to all data sources, N: Apply to specified data sources)",
+    "synonyms_template": "Synonyms (Multiple supported, separated by \",\")",
+    "term_name_template_example_1": "Term1",
+    "term_description_template_example_1": "Term1 Description",
+    "effective_data_sources_template_example_1": "Datasource1, Datasource2",
+    "synonyms_template_example_1": "Synonym1, Synonym2",
+    "term_name_template_example_2": "Term2",
+    "term_description_template_example_2": "Term2 Description",
+    "synonyms_template_example_2": "Synonym3",
+    "word_cannot_be_empty": "Term cannot be empty",
+    "description_cannot_be_empty": "Term description cannot be empty",
+    "datasource_not_found": "Datasource not found"
   },
   "i18n_data_training": {
+    "datasource_list_is_not_found": "Data source list not found",
+    "datasource_id_not_found": "Data source ID: {key} not found",
     "datasource_cannot_be_none": "Datasource cannot be empty",
     "datasource_assistant_cannot_be_none": "Datasource or advanced application cannot both be empty",
     "data_training_not_exists": "This example does not exist",
-    "exists_in_db": "This question already exists"
+    "exists_in_db": "This question already exists",
+    "data_training": "SQL Example Library",
+    "problem_description": "Problem Description",
+    "sample_sql": "Sample SQL",
+    "effective_data_sources": "Effective Data Sources",
+    "advanced_application": "Advanced Application",
+    "problem_description_template": "Problem Description (Required)",
+    "sample_sql_template": "Sample SQL (Required)",
+    "effective_data_sources_template": "Effective Data Sources",
+    "advanced_application_template": "Advanced Application",
+    "problem_description_template_example": "Query all IDs in the TEST table",
+    "effective_data_sources_template_example": "Effective Datasource 1",
+    "advanced_application_template_example": "Effective Advanced Application Name",
+    "error_info": "Error Information",
+    "question_cannot_be_empty": "Question cannot be empty",
+    "description_cannot_be_empty": "Sample SQL cannot be empty",
+    "datasource_not_found": "Datasource not found",
+    "advanced_application_not_found": "Advanced application not found"
   },
   "i18n_custom_prompt": {
     "exists_in_db": "Template name already exists",
-    "not_exists": "This template does not exist"
+    "not_exists": "This template does not exist",
+    "prompt_word_name": "Prompt word name",
+    "prompt_word_content": "Prompt word content",
+    "effective_data_sources": "Effective Data Sources",
+    "all_data_sources": "All Data Sources",
+    "prompt_word_name_template": "Prompt Name (Required)",
+    "prompt_word_content_template": "Prompt Content (Required)",
+    "effective_data_sources_template": "Effective Data Sources (Multiple supported, separated by \",\")",
+    "all_data_sources_template": "All Data Sources (Y: Apply to all data sources, N: Apply to specified data sources)",
+    "prompt_word_name_template_example1": "Prompt1",
+    "prompt_word_content_template_example1": "Describe your prompt in detail",
+    "effective_data_sources_template_example1": "Datasource1, Datasource2",
+    "prompt_word_name_template_example2": "Prompt2",
+    "prompt_word_content_template_example2": "Describe your prompt in detail",
+    "name_cannot_be_empty": "Name cannot be empty",
+    "prompt_cannot_be_empty": "Prompt content cannot be empty",
+    "type_cannot_be_empty": "Type cannot be empty",
+    "datasource_not_found": "Datasource not found",
+    "datasource_cannot_be_none": "Datasource cannot be empty"
   },
   "i18n_excel_export": {
     "data_is_empty": "Form data is empty, unable to export data"
+  },
+  "i18n_excel_import": {
+    "col_num_not_match": "Number of columns in Excel does not match"
+  },
+  "i18n_authentication": {
+    "record_not_exist": "{msg} record does not exist. Please save it first!"
   }
 }

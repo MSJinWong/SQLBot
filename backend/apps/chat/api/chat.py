@@ -1,6 +1,7 @@
 import asyncio
 import io
 import traceback
+from typing import Optional
 
 import orjson
 import pandas as pd
@@ -10,10 +11,11 @@ from sqlalchemy import and_, select
 
 from apps.chat.curd.chat import list_chats, get_chat_with_records, create_chat, rename_chat, \
     delete_chat, get_chat_chart_data, get_chat_predict_data, get_chat_with_records_with_data, get_chat_record_by_id, \
-    format_json_data, format_json_list_data, get_chart_config
+    format_json_data, format_json_list_data, get_chart_config, list_recent_questions
 from apps.chat.models.chat_model import CreateChat, ChatRecord, RenameChat, ChatQuestion, AxisObj
 from apps.chat.task.llm import LLMService
 from common.core.deps import CurrentAssistant, SessionDep, CurrentUser, Trans
+from common.utils.data_format import DataFormat
 
 router = APIRouter(tags=["Data Q&A"], prefix="/chat")
 
@@ -106,7 +108,7 @@ async def start_chat(session: SessionDep, current_user: CurrentUser):
 
 @router.post("/recommend_questions/{chat_record_id}")
 async def recommend_questions(session: SessionDep, current_user: CurrentUser, chat_record_id: int,
-                              current_assistant: CurrentAssistant):
+                              current_assistant: CurrentAssistant, articles_number: Optional[int]  = 4):
     def _return_empty():
         yield 'data:' + orjson.dumps({'content': '[]', 'type': 'recommended_question'}).decode() + '\n\n'
 
@@ -120,6 +122,7 @@ async def recommend_questions(session: SessionDep, current_user: CurrentUser, ch
 
         llm_service = await LLMService.create(session, current_user, request_question, current_assistant, True)
         llm_service.set_record(record)
+        llm_service.set_articles_number(articles_number)
         llm_service.run_recommend_questions_task_async()
     except Exception as e:
         traceback.print_exc()
@@ -130,6 +133,10 @@ async def recommend_questions(session: SessionDep, current_user: CurrentUser, ch
         return StreamingResponse(_err(e), media_type="text/event-stream")
 
     return StreamingResponse(llm_service.await_result(), media_type="text/event-stream")
+
+@router.get("/recent_questions/{datasource_id}")
+async def recommend_questions(session: SessionDep, current_user: CurrentUser, datasource_id: int):
+    return list_recent_questions(session=session, current_user=current_user, datasource_id=datasource_id)
 
 
 @router.post("/question")
@@ -245,9 +252,9 @@ async def export_excel(session: SessionDep, chat_record_id: int, trans: Trans):
 
     def inner():
 
-        data_list = LLMService.convert_large_numbers_in_object_array(_data + _predict_data)
+        data_list = DataFormat.convert_large_numbers_in_object_array(_data + _predict_data)
 
-        md_data, _fields_list = LLMService.convert_object_array_for_pandas(fields, data_list)
+        md_data, _fields_list = DataFormat.convert_object_array_for_pandas(fields, data_list)
 
         # data, _fields_list, col_formats = LLMService.format_pd_data(fields, _data + _predict_data)
 

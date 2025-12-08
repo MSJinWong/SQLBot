@@ -235,8 +235,9 @@ const menuSelect = (e: any) => {
   router.push(e.index)
 }
 const logout = async () => {
-  await userStore.logout()
-  router.push('/login')
+  if (!(await userStore.logout())) {
+    router.push('/login')
+  }
 }
 const toSystem = () => {
   router.push('/system')

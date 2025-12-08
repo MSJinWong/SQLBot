@@ -34,6 +34,7 @@ class BaseUserDTO(BaseUser, BaseCreatorDTO):
     language: str = Field(pattern=r"^(zh-CN|en|ko-KR)$", default="zh-CN", description="用户语言")
     password: str
     status: int = 1
+    origin: int = 0
 
     def to_dict(self):
         return {
@@ -116,6 +117,7 @@ class AssistantHeader(AssistantDTO):
     unique: Optional[str] = None
     certificate: Optional[str] = None
     online: bool = False
+    request_origin: Optional[str] = None
 
 
 class AssistantValidator(BaseModel):
@@ -177,6 +179,7 @@ class AssistantOutDsBase(BaseModel):
     type_name: Optional[str] = None
     comment: Optional[str] = None
     description: Optional[str] = None
+    configuration: Optional[str] = None
 
 
 class AssistantOutDsSchema(AssistantOutDsBase):

@@ -1,4 +1,5 @@
 import json
+import re
 import urllib
 from typing import Optional
 
@@ -10,6 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 # from apps.datasource.embedding.table_embedding import get_table_embedding
 from apps.datasource.models.datasource import CoreDatasource, DatasourceConf
+from apps.datasource.utils.utils import aes_encrypt
 from apps.system.models.system_model import AssistantModel
 from apps.system.schemas.auth import CacheName, CacheNamespace
 from apps.system.schemas.system_schema import AssistantHeader, AssistantOutDsSchema, UserInfoDTO
@@ -99,17 +101,22 @@ class AssistantOutDs:
     assistant: AssistantHeader
     ds_list: Optional[list[AssistantOutDsSchema]] = None
     certificate: Optional[str] = None
+    request_origin: Optional[str] = None
 
     def __init__(self, assistant: AssistantHeader):
         self.assistant = assistant
         self.ds_list = None
         self.certificate = assistant.certificate
+        self.request_origin = assistant.request_origin
         self.get_ds_from_api()
 
     # @cache(namespace=CacheNamespace.EMBEDDED_INFO, cacheName=CacheName.ASSISTANT_DS, keyExpression="current_user.id")
     def get_ds_from_api(self):
         config: dict[any] = json.loads(self.assistant.configuration)
         endpoint: str = config['endpoint']
+        endpoint = self.get_complete_endpoint(endpoint=endpoint)
+        if not endpoint:
+            raise Exception(f"Failed to get datasource list from {config['endpoint']}, error: [Assistant domain or endpoint miss]")
         certificateList: list[any] = json.loads(self.certificate)
         header = {}
         cookies = {}
@@ -136,7 +143,23 @@ class AssistantOutDs:
                 raise Exception(f"Failed to get datasource list from {endpoint}, error: {result_json.get('message')}")
         else:
             raise Exception(f"Failed to get datasource list from {endpoint}, status code: {res.status_code}")
-
+        
+    def get_first_element(self, text: str):
+        parts = re.split(r'[,;]', text.strip())
+        first_domain = parts[0].strip()
+        return first_domain
+    
+    def get_complete_endpoint(self, endpoint: str) -> str | None:
+        if endpoint.startswith("http://") or endpoint.startswith("https://"):
+            return endpoint
+        domain_text = self.assistant.domain
+        if not domain_text:
+            return None
+        if ',' in domain_text or ';' in domain_text:
+            return (self.request_origin.strip('/') if self.request_origin else self.get_first_element(domain_text).strip('/')) + endpoint
+        else:
+            return f"{domain_text}{endpoint}"  
+    
     def get_simple_ds_list(self):
         if self.ds_list:
             return [{'id': ds.id, 'name': ds.name, 'description': ds.comment} for ds in self.ds_list]
@@ -153,7 +176,7 @@ class AssistantOutDs:
         for table in ds.tables:
             i += 1
             schema_table = ''
-            schema_table += f"# Table: {db_name}.{table.name}" if ds.type != "mysql" else f"# Table: {table.name}"
+            schema_table += f"# Table: {db_name}.{table.name}" if ds.type != "mysql" and ds.type != "es" else f"# Table: {table.name}"
             table_comment = table.comment
             if table_comment == '':
                 schema_table += '\n[\n'
@@ -250,3 +273,19 @@ def get_ds_engine(ds: AssistantOutDsSchema) -> Engine:
     else:
         engine = create_engine(uri, connect_args={"connect_timeout": timeout}, pool_timeout=timeout)
     return engine
+
+
+def get_out_ds_conf(ds: AssistantOutDsSchema, timeout:int=30) -> str:
+    conf = {
+        "host":ds.host or '',
+        "port":ds.port or 0,
+        "username":ds.user or '',
+        "password":ds.password or '',
+        "database":ds.dataBase or '',
+        "driver":'',
+        "extraJdbc":ds.extraParams or '',
+        "dbSchema":ds.db_schema or '',
+        "timeout":timeout or 30
+    }
+    conf["extraJdbc"] = ''
+    return aes_encrypt(json.dumps(conf))
