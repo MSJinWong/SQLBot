@@ -1,31 +1,32 @@
 # Author: Junjun
 # Date: 2025/7/1
 import json
-import traceback
 from datetime import timedelta
+from typing import Optional
 
 import jwt
 from fastapi import HTTPException, status, APIRouter
-from fastapi.responses import StreamingResponse
 # from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
 from sqlmodel import select
-from starlette.responses import JSONResponse
 
-from apps.chat.api.chat import create_chat
+from apps.chat.api.chat import create_chat, question_answer_inner
 from apps.chat.models.chat_model import ChatMcp, CreateChat, ChatStart, McpQuestion, McpAssistant, ChatQuestion, \
-    ChatFinishStep
-from apps.chat.task.llm import LLMService
-from apps.system.crud.user import authenticate
+    ChatFinishStep, McpDs, ChatToken
+from apps.datasource.crud.datasource import get_datasource_list
+from apps.system.crud.user import authenticate, user_ws_options
 from apps.system.crud.user import get_db_user
 from apps.system.models.system_model import UserWsModel
 from apps.system.models.user import UserModel
 from apps.system.schemas.system_schema import BaseUserDTO, AssistantHeader
 from apps.system.schemas.system_schema import UserInfoDTO
+from common.audit.models.log_model import OperationType, OperationModules
+from common.audit.schemas.logger_decorator import LogConfig, system_log
+from common.audit.schemas.request_context import RequestContext
 from common.core import security
 from common.core.config import settings
-from common.core.deps import SessionDep
+from common.core.deps import SessionDep, Trans
 from common.core.schemas import TokenPayload, XOAuth2PasswordBearer, Token
 from common.core.security import create_access_token
 
@@ -36,33 +37,8 @@ reusable_oauth2 = XOAuth2PasswordBearer(
 router = APIRouter(tags=["mcp"], prefix="/mcp")
 
 
-# @router.post("/access_token", operation_id="access_token")
-# def local_login(
-#         session: SessionDep,
-#         form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
-# ) -> Token:
-#     user = authenticate(session=session, account=form_data.username, password=form_data.password)
-#     if not user:
-#         raise HTTPException(status_code=400, detail="Incorrect account or password")
-#     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-#     user_dict = user.to_dict()
-#     return Token(access_token=create_access_token(
-#         user_dict, expires_delta=access_token_expires
-#     ))
-
-
-# @router.get("/ds_list", operation_id="get_datasource_list")
-# async def datasource_list(session: SessionDep):
-#     return get_datasource_list(session=session)
-#
-#
-# @router.get("/model_list", operation_id="get_model_list")
-# async def get_model_list(session: SessionDep):
-#     return session.query(AiModelDetail).all()
-
-
-@router.post("/mcp_start", operation_id="mcp_start")
-async def mcp_start(session: SessionDep, chat: ChatStart):
+@router.post("/access_token", operation_id="access_token")
+async def access_token(session: SessionDep, chat: ChatToken):
     user: BaseUserDTO = authenticate(session=session, account=chat.username, password=chat.password)
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect account or password")
@@ -74,15 +50,14 @@ async def mcp_start(session: SessionDep, chat: ChatStart):
     t = Token(access_token=create_access_token(
         user_dict, expires_delta=access_token_expires
     ))
-    c = create_chat(session, user, CreateChat(origin=1), False)
-    return {"access_token": t.access_token, "chat_id": c.id}
+    # c = create_chat(session, user, CreateChat(origin=1), False)
+    return {"access_token": t.access_token}
 
 
-@router.post("/mcp_question", operation_id="mcp_question")
-async def mcp_question(session: SessionDep, chat: McpQuestion):
+def get_user(session: SessionDep, token: str):
     try:
         payload = jwt.decode(
-            chat.token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
         token_data = TokenPayload(**payload)
     except (InvalidTokenError, ValidationError):
@@ -95,6 +70,7 @@ async def mcp_question(session: SessionDep, chat: McpQuestion):
     db_user: UserModel = get_db_user(session=session, user_id=token_data.id)
     session_user = UserInfoDTO.model_validate(db_user.model_dump())
     session_user.isAdmin = session_user.id == 1 and session_user.account == 'admin'
+    session_user.language = 'zh-CN'
     if session_user.isAdmin:
         session_user = session_user
     ws_model: UserWsModel = session.exec(
@@ -107,44 +83,121 @@ async def mcp_question(session: SessionDep, chat: McpQuestion):
 
     if session_user.status != 1:
         raise HTTPException(status_code=400, detail="Inactive user")
+    return session_user
 
-    mcp_chat = ChatMcp(token=chat.token, chat_id=chat.chat_id, question=chat.question)
 
-    try:
-        llm_service = await LLMService.create(session, session_user, mcp_chat)
-        llm_service.init_record(session=session)
-        llm_service.run_task_async(False, chat.stream)
-    except Exception as e:
-        traceback.print_exc()
-
-        if chat.stream:
-            def _err(_e: Exception):
-                yield str(_e) + '\n\n'
-
-            return StreamingResponse(_err(e), media_type="text/event-stream")
-        else:
-            return JSONResponse(
-                content={'message': str(e)},
-                status_code=500,
-            )
-    if chat.stream:
-        return StreamingResponse(llm_service.await_result(), media_type="text/event-stream")
+@router.post("/mcp_start", operation_id="mcp_start")
+@system_log(LogConfig(
+    operation_type=OperationType.CREATE,
+    module=OperationModules.CHAT,
+    result_id_expr="id",
+    save_on_success_only=True
+))
+async def mcp_start(session: SessionDep, trans: Trans, chat: ChatStart):
+    res_token = None
+    user = None
+    if chat.token:
+        res_token = chat.token
+        user = get_user(session, chat.token)
     else:
-        res = llm_service.await_result()
-        raw_data = {}
-        for chunk in res:
-            if chunk:
-                raw_data = chunk
-        status_code = 200
-        if not raw_data.get('success'):
-            status_code = 500
+        user = authenticate(session=session, account=chat.username, password=chat.password)
+        if not user:
+            raise HTTPException(status_code=400, detail="Incorrect account or password")
 
-        return JSONResponse(
-            content=raw_data,
-            status_code=status_code,
-        )
+        if not user.oid or user.oid == 0:
+            raise HTTPException(status_code=400, detail="No associated workspace, Please contact the administrator")
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        user_dict = user.to_dict()
+        t = Token(access_token=create_access_token(
+            user_dict, expires_delta=access_token_expires
+        ))
+        res_token = t.access_token
+
+    if chat.oid:
+        w_list = await user_ws_options(session, user.id, trans)
+        oid_list = [item.id for item in w_list]
+        if int(chat.oid) not in oid_list:
+            raise HTTPException(status_code=400, detail="The current user is not in the selected workspace")
+
+        user.oid = int(chat.oid)
+
+    request = RequestContext.get_request()
+    request.state.current_user = user
+
+    c = create_chat(session, user, CreateChat(origin=1), False)
+    return {"access_token": res_token, "chat_id": c.id}
 
 
+@router.post("/mcp_ws_list", operation_id="mcp_ws_list")
+async def ws_list(session: SessionDep, trans: Trans, token: str):
+    session_user = get_user(session, token)
+    return await user_ws_options(session, session_user.id, trans)
+
+
+@router.post("/mcp_ds_list", operation_id="mcp_datasource_list")
+async def datasource_list(session: SessionDep, trans: Trans, mcp_ds: McpDs):
+    session_user = get_user(session, mcp_ds.token)
+    if mcp_ds.oid:
+        w_list = await user_ws_options(session, session_user.id, trans)
+        oid_list = [item.id for item in w_list]
+        if int(mcp_ds.oid) not in oid_list:
+            raise HTTPException(status_code=400, detail="The current user is not in the selected workspace")
+
+        session_user.oid = int(mcp_ds.oid)
+    ds_list = get_datasource_list(session=session, user=session_user)
+    result = []
+    for item in ds_list:
+        dic = item.__dict__
+        dic.pop('embedding', None)
+        dic.pop('table_relation', None)
+        dic.pop('recommended_config', None)
+        dic.pop('configuration', None)
+        result.append(dic)
+    return result
+
+
+#
+#
+# @router.get("/model_list", operation_id="get_model_list")
+# async def get_model_list(session: SessionDep):
+#     return session.query(AiModelDetail).all()
+
+
+@router.post("/mcp_question", operation_id="mcp_question")
+async def mcp_question(session: SessionDep, trans: Trans, chat: McpQuestion):
+    session_user = get_user(session, chat.token)
+    lang = chat.lang
+    if lang in ["zh-CN", "zh-TW", "en", "ko-KR"]:
+        session_user.language = lang
+    # if chat.oid:
+    #     w_list = await user_ws_options(session, session_user.id, trans)
+    #     oid_list = [item.id for item in w_list]
+    #     if int(chat.oid) not in oid_list:
+    #         raise HTTPException(status_code=400, detail="The current user is not in the selected workspace")
+    #
+    #     session_user.oid = int(chat.oid)
+    ds_id: Optional[int] = None
+    if chat.datasource_id:
+        if isinstance(chat.datasource_id, str):
+            if chat.datasource_id.strip() == "":
+                ds_id = None
+            else:
+                try:
+                    ds_id = int(chat.datasource_id.strip())
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid datasource ID")
+        elif isinstance(chat.datasource_id, int):
+            ds_id = chat.datasource_id
+        else:
+            raise HTTPException(status_code=400, detail="Invalid datasource ID")
+
+    mcp_chat = ChatMcp(token=chat.token, chat_id=chat.chat_id, question=chat.question, datasource_id=ds_id)
+
+    return await question_answer_inner(session=session, current_user=session_user, request_question=mcp_chat,
+                                       in_chat=False, stream=chat.stream, return_img=chat.return_img)
+
+
+# Cordys crm
 @router.post("/mcp_assistant", operation_id="mcp_assistant")
 async def mcp_assistant(session: SessionDep, chat: McpAssistant):
     session_user = BaseUserDTO(**{
@@ -166,36 +219,6 @@ async def mcp_assistant(session: SessionDep, chat: McpAssistant):
     # assistant question
     mcp_chat = ChatQuestion(chat_id=c.id, question=chat.question)
     # ask
-    try:
-        llm_service = await LLMService.create(session, session_user, mcp_chat, mcp_assistant_header)
-        llm_service.init_record(session=session)
-        llm_service.run_task_async(False, chat.stream, ChatFinishStep.QUERY_DATA)
-    except Exception as e:
-        traceback.print_exc()
-
-        if chat.stream:
-            def _err(_e: Exception):
-                yield str(_e) + '\n\n'
-
-            return StreamingResponse(_err(e), media_type="text/event-stream")
-        else:
-            return JSONResponse(
-                content={'message': str(e)},
-                status_code=500,
-            )
-    if chat.stream:
-        return StreamingResponse(llm_service.await_result(), media_type="text/event-stream")
-    else:
-        res = llm_service.await_result()
-        raw_data = {}
-        for chunk in res:
-            if chunk:
-                raw_data = chunk
-        status_code = 200
-        if not raw_data.get('success'):
-            status_code = 500
-
-        return JSONResponse(
-            content=raw_data,
-            status_code=status_code,
-        )
+    return await question_answer_inner(session=session, current_user=session_user, request_question=mcp_chat,
+                                       current_assistant=mcp_assistant_header,
+                                       in_chat=False, stream=chat.stream, finish_step=ChatFinishStep.QUERY_DATA)

@@ -230,7 +230,7 @@ const operation = (opt: string, data: SQTreeNode) => {
       autofocus: false,
       showClose: false,
     }).then(() => {
-      dashboardApi.delete_resource({ id: data.id }).then(() => {
+      dashboardApi.delete_resource({ id: data.id, name: data.name }).then(() => {
         ElMessage.success(t('dashboard.delete_success'))
         getTree()
         dashboardStore.canvasDataInit()
@@ -456,7 +456,7 @@ defineExpose({
   border: 1px solid #d9dcdf;
   width: 32px;
   height: 32px;
-  border-radius: 4px;
+  border-radius: 6px;
   color: #1f2329;
   padding: 8px;
   margin-left: 8px;
@@ -612,7 +612,7 @@ defineExpose({
   }
 
   .icon-screen-new {
-    border-radius: 4px;
+    border-radius: 6px;
     color: #fff;
     padding: 3px;
   }
@@ -623,7 +623,7 @@ defineExpose({
 .tree-sort-menu-custom {
   padding: 4px !important;
   li {
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 0 8px !important;
   }
   .ed-dropdown-menu__item:not(.is-disabled):not(.selected):hover {
@@ -635,7 +635,7 @@ defineExpose({
   margin-top: -2px !important;
 
   .ed-icon {
-    border-radius: 4px;
+    border-radius: 6px;
   }
 }
 

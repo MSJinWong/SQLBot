@@ -19,8 +19,8 @@ const appearanceStore = useAppearanceStoreWithOut()
 </script>
 
 <template>
-  <div class="chat-row-container">
-    <div class="chat-row" :class="{ 'right-to-left': msg.role === 'user' }">
+  <div class="chat-row-container flex-gap-fallback flex-col">
+    <div class="chat-row flex-gap-fallback" :class="{ 'right-to-left': msg.role === 'user' }">
       <div v-if="msg.role === 'assistant'" class="ai-avatar">
         <img
           v-if="!hideAvatar && appearanceStore.getLogin"
@@ -30,8 +30,8 @@ const appearanceStore = useAppearanceStoreWithOut()
           height="28"
         />
         <el-icon v-else-if="!hideAvatar">
-          <custom_small v-if="appearanceStore.themeColor === 'custom'"></custom_small>
-          <logo_fold v-else />
+          <logo_fold v-if="appearanceStore.themeColor === 'default'" />
+          <custom_small v-else></custom_small>
         </el-icon>
       </div>
       <div :class="{ 'row-full': msg.role === 'assistant', 'width-auto': msg.role === 'user' }">
@@ -46,6 +46,7 @@ const appearanceStore = useAppearanceStoreWithOut()
 .chat-row-container {
   display: flex;
   flex-direction: column;
+  --gap-size: 8px;
   gap: 8px;
   width: 100%;
   max-width: 800px;
@@ -54,6 +55,7 @@ const appearanceStore = useAppearanceStoreWithOut()
     display: flex;
     flex-direction: row;
     align-items: flex-start;
+    --gap-size: 8px;
     gap: 8px;
     padding: 20px 0 0;
 

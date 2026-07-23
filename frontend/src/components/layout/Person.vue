@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import Default_avatar_custom from '@/assets/img/Default-avatar.svg'
 import icon_admin_outlined from '@/assets/svg/icon_admin_outlined.svg'
 import icon_key_outlined from '@/assets/svg/icon-key_outlined.svg'
+import icon_api_key from '@/assets/svg/icon-api_key.svg'
 import icon_translate_outlined from '@/assets/svg/icon_translate_outlined.svg'
 import icon_logout_outlined from '@/assets/svg/icon_logout_outlined.svg'
 import icon_right_outlined from '@/assets/svg/icon_right_outlined.svg'
@@ -10,10 +11,14 @@ import AboutDialog from '@/components/about/index.vue'
 import icon_done_outlined from '@/assets/svg/icon_done_outlined.svg'
 import { useI18n } from 'vue-i18n'
 import PwdForm from './PwdForm.vue'
+import Apikey from './Apikey.vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { userApi } from '@/api/auth'
+import { toLoginPage } from '@/utils/utils'
+import { useCache } from '@/utils/useCache'
 
+const { wsCache } = useCache()
 const router = useRouter()
 const userStore = useUserStore()
 const pwdFormRef = ref()
@@ -28,7 +33,17 @@ const account = computed(() => userStore.getAccount)
 const currentLanguage = computed(() => userStore.getLanguage)
 const isAdmin = computed(() => userStore.isAdmin)
 const isLocalUser = computed(() => !userStore.getOrigin)
+
+const isClient = computed(() => {
+  return !!wsCache.get('sqlbot-platform-client')
+})
+
+const platFlag = computed(() => {
+  const platformInfo = userStore.getPlatformInfo
+  return platformInfo?.origin || 0
+})
 const dialogVisible = ref(false)
+const apikeyDialogVisible = ref(false)
 const aboutRef = ref()
 const languageList = computed(() => [
   {
@@ -38,6 +53,10 @@ const languageList = computed(() => [
   {
     name: '简体中文',
     value: 'zh-CN',
+  },
+  {
+    name: '繁體中文',
+    value: 'zh-TW',
   },
   {
     name: '한국인',
@@ -68,12 +87,16 @@ const openPwd = () => {
 const closePwd = () => {
   dialogVisible.value = false
 }
+const openApikey = () => {
+  apikeyDialogVisible.value = true
+}
 const savePwdHandler = () => {
   pwdFormRef.value?.submit()
 }
 const logout = async () => {
   if (!(await userStore.logout())) {
-    router.push('/login')
+    router.push(toLoginPage(router?.currentRoute?.value?.fullPath || ''))
+    // router.push('/login')
   }
 }
 </script>
@@ -108,11 +131,17 @@ const logout = async () => {
           </el-icon>
           <div class="datasource-name">{{ $t('common.system_manage') }}</div>
         </div>
-        <div v-if="isLocalUser" class="popover-item" @click="openPwd">
+        <div v-if="isLocalUser && !platFlag" class="popover-item" @click="openPwd">
           <el-icon size="16">
             <icon_key_outlined></icon_key_outlined>
           </el-icon>
           <div class="datasource-name">{{ $t('user.change_password') }}</div>
+        </div>
+        <div class="popover-item" @click="openApikey">
+          <el-icon size="16">
+            <icon_api_key></icon_api_key>
+          </el-icon>
+          <div class="datasource-name">API Key</div>
         </div>
         <el-popover :teleported="false" popper-class="system-language" placement="right">
           <template #reference>
@@ -142,7 +171,7 @@ const logout = async () => {
           </div>
         </el-popover>
         <div style="height: 4px; width: 100%"></div>
-        <div class="popover-item mr4" @click="logout">
+        <div v-if="!isClient" class="popover-item mr4" @click="logout">
           <el-icon size="16">
             <icon_logout_outlined></icon_logout_outlined>
           </el-icon>
@@ -160,6 +189,9 @@ const logout = async () => {
         <el-button type="primary" @click="savePwdHandler">{{ t('common.save') }}</el-button>
       </div>
     </template>
+  </el-dialog>
+  <el-dialog v-model="apikeyDialogVisible" title="API Key" width="840">
+    <apikey v-if="apikeyDialogVisible" ref="apikeyRef" />
   </el-dialog>
   <AboutDialog ref="aboutRef" />
 </template>
@@ -290,7 +322,7 @@ const logout = async () => {
       position: relative;
       cursor: pointer;
       margin: 0 4px;
-      border-radius: 4px;
+      border-radius: 6px;
       &:hover {
         background-color: #1f23291a;
       }
@@ -327,7 +359,7 @@ const logout = async () => {
       padding-right: 8px;
       margin-bottom: 2px;
       position: relative;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       &:not(.empty):hover {
         background: #1f23291a;

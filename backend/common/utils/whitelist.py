@@ -7,7 +7,6 @@ wlist = [
     "/",
     "/docs",
     "/login/*",
-    "*.json",
     "*.ico",
     "*.html",
     "*.js",
@@ -22,6 +21,7 @@ wlist = [
     "*.ttf",
     "*.eot",
     "*.otf",
+    "*.css.map",
     "/mcp*",
     "/system/license",
     "/system/config/key",
@@ -33,10 +33,12 @@ wlist = [
     "/system/assistant/info/*",
     "/system/assistant/app/*",
     "/system/assistant/picture/*",
-    "/datasource/uploadExcel",
     "/system/authentication/platform/status",
     "/system/authentication/login/*",
     "/system/authentication/sso/*",
+    "/system/platform/sso/*",
+    "/system/platform/client/*",
+    "/system/parameter/login"
 ]
 
 class WhitelistChecker:
@@ -65,6 +67,13 @@ class WhitelistChecker:
         prefix = settings.API_V1_STR
         if path.startswith(prefix):
             path = path[len(prefix):]
+            
+        context_prefix = settings.CONTEXT_PATH
+        if context_prefix and path.startswith(context_prefix):
+            path = path[len(context_prefix):]
+        
+        if not path:
+            path = '/'
         if path in self.whitelist:
             return True
             

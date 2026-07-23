@@ -31,7 +31,7 @@ interface Form {
   description?: string | null
 }
 
-const emits = defineEmits(['btnSelectChange'])
+// const emits = defineEmits(['btnSelectChange'])
 const { t } = useI18n()
 const multipleSelectionAll = ref<any[]>([])
 const keywords = ref('')
@@ -65,6 +65,8 @@ const defaultForm = {
   type: 4,
   configuration: null,
   description: null,
+  enable_custom_model: false,
+  custom_model: null,
 }
 const pageForm = ref<Form>(cloneDeep(defaultForm))
 
@@ -180,7 +182,10 @@ const refresh = (row: any) => {
     })
 }
 
-const search = () => {
+const search = ($event: any = {}) => {
+  if ($event?.isComposing) {
+    return
+  }
   searchLoading.value = true
   embeddedApi
     .getList(pageInfo.currentPage, pageInfo.pageSize, { keyword: keywords.value })
@@ -310,7 +315,8 @@ const copyCode = (row: any, key: any = 'app_secret') => {
 <template>
   <div v-loading="searchLoading" class="embedded-page">
     <div class="tool-left">
-      <div class="btn-select">
+      <span class="page-title">{{ t('embedded.embedded_management') }}</span>
+      <!-- <div class="btn-select">
         <el-button
           :class="[btnSelect === 'd' && 'is-active']"
           text
@@ -325,14 +331,14 @@ const copyCode = (row: any, key: any = 'app_secret') => {
         >
           {{ t('embedded.embedded_page') }}
         </el-button>
-      </div>
+      </div> -->
       <div>
         <el-input
           v-model="keywords"
           style="width: 240px; margin-right: 12px"
           :placeholder="$t('dashboard.search')"
           clearable
-          @blur="search"
+          @keydown.enter.exact.prevent="search"
         >
           <template #prefix>
             <el-icon>
@@ -352,7 +358,7 @@ const copyCode = (row: any, key: any = 'app_secret') => {
     <div
       v-if="!searchLoading"
       class="table-content"
-      :class="multipleSelectionAll.length && 'show-pagination_height'"
+      :class="multipleSelectionAll.length ? 'show-pagination_height' : ''"
     >
       <template v-if="!oldKeywords && !fieldList.length">
         <EmptyBackground
@@ -639,7 +645,11 @@ const copyCode = (row: any, key: any = 'app_secret') => {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 16px;
-
+    .page-title {
+      font-weight: 500;
+      font-size: 20px;
+      line-height: 28px;
+    }
     .btn-select {
       height: 32px;
       padding-left: 4px;

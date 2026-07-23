@@ -8,7 +8,7 @@
           style="width: 240px; margin-right: 12px"
           :placeholder="$t('user.name_account_email')"
           clearable
-          @blur="handleSearch"
+          @keydown.enter.exact.prevent="handleSearch"
         >
           <template #prefix>
             <el-icon>
@@ -23,7 +23,49 @@
           </template>
           {{ $t('user.filter') }}
         </el-button>
-        <!-- <el-button secondary @click="handleUserImport">
+
+        <el-tooltip
+          v-if="!platformType.length && showSyncBtn"
+          effect="dark"
+          :content="$t('sync.integration')"
+          placement="left"
+        >
+          <el-button disabled secondary>
+            <template #icon>
+              <icon_replace_outlined />
+            </template>
+            {{ t('sync.sync_users') }}
+          </el-button>
+        </el-tooltip>
+
+        <el-popover
+          v-if="platformType.length && showSyncBtn"
+          popper-class="sync-platform"
+          placement="bottom-start"
+        >
+          <template #reference>
+            <el-button secondary>
+              <template #icon>
+                <icon_replace_outlined />
+              </template>
+              {{ t('sync.sync_users') }}
+            </el-button></template
+          >
+          <div class="popover">
+            <div class="popover-content">
+              <div
+                v-for="ele in platformType"
+                :key="ele.name"
+                class="popover-item"
+                @click="handleSyncUser(ele)"
+              >
+                <img height="24" width="24" :src="ele.icon" />
+                <div class="model-name">{{ $t(ele.name) }}</div>
+              </div>
+            </div>
+          </div>
+        </el-popover>
+        <!--  <el-button secondary @click="handleUserImport">
           <template #icon>
             <ccmUpload></ccmUpload>
           </template>
@@ -54,6 +96,7 @@
         :data="state.tableData"
         style="width: 100%"
         @selection-change="handleSelectionChange"
+        @sort-change="handleSortChange"
       >
         <el-table-column type="selection" width="55" />
         <el-table-column prop="name" show-overflow-tooltip :label="$t('user.name')" width="280" />
@@ -313,6 +356,121 @@
           </el-option>
         </el-select>
       </el-form-item>
+      <el-form-item>
+        <template #label>
+          <div style="display: flex; align-items: center; height: 22px">
+            <span>{{ t('variables.system_variables') }}</span>
+            <span
+              class="btn"
+              @click="
+                state.form.system_variables.push({
+                  variableId: '',
+                  variableValues: [],
+                  variableValue: '',
+                })
+              "
+            >
+              <el-icon style="margin-right: 4px" size="16">
+                <icon_add_outlined></icon_add_outlined>
+              </el-icon>
+              {{ $t('model.add') }}
+            </span>
+          </div>
+        </template>
+        <div v-if="!!state.form.system_variables.length" class="value-list">
+          <div class="title">
+            <span style="width: calc(48% - 2px)">{{ t('variables.variables') }}</span>
+            <span>{{ t('variables.variable_value') }}</span>
+          </div>
+          <div v-for="(_, index) in state.form.system_variables" :key="index" class="item">
+            <el-select
+              v-model="state.form.system_variables[index].variableId"
+              style="width: 236px"
+              :placeholder="$t('datasource.Please_select')"
+            >
+              <el-option
+                v-for="item in variables"
+                :key="item.id"
+                :label="item.name"
+                :disabled="
+                  state.form.system_variables.map((ele: any) => ele.variableId).includes(item.id)
+                "
+                :value="item.id"
+              >
+                <div style="width: 100%; display: flex; align-items: center">
+                  <el-icon
+                    :class="`${variableValueMap[item.id].var_type}-variables`"
+                    size="16"
+                    style="margin-right: 4px"
+                  >
+                    <component
+                      :is="iconMap[variableValueMap[item.id].var_type as keyof typeof iconMap]"
+                    ></component>
+                  </el-icon>
+                  {{ item.name }}
+                </div>
+              </el-option>
+            </el-select>
+            <el-select
+              v-if="!state.form.system_variables[index].variableId"
+              v-model="state.form.system_variables[index].variableValues"
+              multiple
+              style="width: 236px"
+              :placeholder="$t('datasource.Please_select')"
+            >
+              <el-option v-for="item in []" :key="item" :label="item" :value="item"> </el-option>
+            </el-select>
+            <el-select
+              v-else-if="
+                variableValueMap[state.form.system_variables[index].variableId].var_type === 'text'
+              "
+              v-model="state.form.system_variables[index].variableValues"
+              multiple
+              style="width: 236px"
+              :placeholder="$t('datasource.Please_select')"
+            >
+              <el-option
+                v-for="item in variableValueMap[state.form.system_variables[index].variableId]
+                  .value"
+                :key="item"
+                :label="item"
+                :value="item"
+              >
+              </el-option>
+            </el-select>
+            <el-input-number
+              v-else-if="
+                variableValueMap[state.form.system_variables[index].variableId].var_type ===
+                'number'
+              "
+              v-model.number="state.form.system_variables[index].variableValue"
+              style="width: 236px"
+              :placeholder="$t('variables.please_enter_value')"
+              clearable
+              max="10000000000000000"
+              controls-position="right"
+            />
+            <el-date-picker
+              v-else
+              v-model="state.form.system_variables[index].variableValue"
+              type="date"
+              style="width: 236px"
+              value-format="YYYY-MM-DD"
+              :placeholder="$t('variables.please_select_date')"
+            />
+            <el-tooltip
+              :offset="14"
+              effect="dark"
+              :content="$t('dashboard.delete')"
+              placement="top"
+            >
+              <el-icon class="action-btn" size="16" @click="deleteValues(index as number)">
+                <IconOpeDelete></IconOpeDelete>
+              </el-icon>
+            </el-tooltip>
+          </div>
+        </div>
+      </el-form-item>
       <el-form-item :label="$t('user.user_status')">
         <el-switch v-model="state.form.status" :active-value="1" :inactive-value="0" />
       </el-form-item>
@@ -371,32 +529,42 @@
       </div>
     </template>
   </el-dialog>
-  <UserImport ref="userImportRef"></UserImport>
+  <UserImport ref="userImportRef" @refresh-grid="search"></UserImport>
   <drawer-main
     ref="drawerMainRef"
     :filter-options="filterOption"
     @trigger-filter="searchCondition"
   />
+  <SyncUserDing ref="syncUserRef" @refresh="refresh"></SyncUserDing>
 </template>
 
 <script setup lang="ts">
-import { ref, unref, reactive, onMounted, nextTick } from 'vue'
+import { ref, unref, reactive, onMounted, nextTick, h, shallowRef } from 'vue'
 import UserImport from './UserImport.vue'
 import SuccessFilled from '@/assets/svg/gou_icon.svg'
+import icon_replace_outlined from '@/assets/svg/icon_replace_outlined.svg'
 import CircleCloseFilled from '@/assets/svg/icon_ban_filled.svg'
+import { ElButton } from 'element-plus-secondary'
 import icon_searchOutline_outlined from '@/assets/svg/icon_search-outline_outlined.svg'
 import { useI18n } from 'vue-i18n'
 import EmptyBackground from '@/views/dashboard/common/EmptyBackground.vue'
 import { convertFilterText, FilterText } from '@/components/filter-text'
-
+import SyncUserDing from './SyncUserDing.vue'
 import IconLock from '@/assets/svg/icon-key_outlined.svg'
 import IconOpeEdit from '@/assets/svg/icon_edit_outlined.svg'
 import IconOpeDelete from '@/assets/svg/icon_delete.svg'
 import iconFilter from '@/assets/svg/icon-filter_outlined.svg'
-// import ccmUpload from '@/assets/svg/icon_ccm-upload_outlined.svg'
+import logo_dingtalk from '@/assets/img/dingtalk.png'
+import logo_lark from '@/assets/img/lark.png'
+import logo_wechat_work from '@/assets/img/wechat.png'
 import icon_add_outlined from '@/assets/svg/icon_add_outlined.svg'
 import { userApi } from '@/api/user'
+import field_text from '@/assets/svg/field_text.svg'
+import field_time from '@/assets/svg/field_time.svg'
+import field_value from '@/assets/svg/field_value.svg'
+import { request } from '@/utils/request'
 import { workspaceList } from '@/api/workspace'
+import { variablesApi } from '@/api/variables'
 import { formatTimestamp } from '@/utils/date'
 import { ClickOutside as vClickOutside } from 'element-plus-secondary'
 import icon_warning_filled from '@/assets/svg/icon_warning_filled.svg'
@@ -414,7 +582,14 @@ const dialogVisiblePassword = ref(false)
 const isIndeterminate = ref(true)
 const drawerMainRef = ref()
 const userImportRef = ref()
+const syncUserRef = ref()
 const selectionLoading = ref(false)
+
+const iconMap = {
+  text: field_text,
+  number: field_value,
+  datetime: field_time,
+}
 const filterOption = ref<any[]>([
   {
     type: 'enum',
@@ -434,7 +609,11 @@ const filterOption = ref<any[]>([
       { id: '2', name: 'OIDC' },
       { id: '3', name: 'LDAP' },
       { id: '4', name: 'OAuth2' },
-      { id: '5', name: 'SAML2' },
+      /* { id: '5', name: 'SAML2' }, */
+      { id: '6', name: t('user.wecom') },
+      { id: '7', name: t('user.dingtalk') },
+      { id: '8', name: t('user.lark') },
+      /* { id: '9', name: t('user.larksuite') }, */
     ],
     field: 'origins',
     title: t('user.user_source'),
@@ -459,8 +638,11 @@ const defaultForm = {
   status: 1,
   phoneNumber: '',
   oid_list: [],
+  system_variables: [],
 }
 const options = ref<any[]>([])
+const variables = shallowRef<any[]>([])
+const variableValueMap = shallowRef<any>({})
 const state = reactive<any>({
   tableData: [],
   filterTexts: [],
@@ -470,8 +652,12 @@ const state = reactive<any>({
     currentPage: 1,
     pageSize: 20,
     total: 0,
+    sortColumn: '',
+    sortOrder: '',  // 'ascending' | 'descending' | ''
   },
 })
+
+const currentPlatform = ref<any>({})
 const rules = {
   name: [
     {
@@ -502,6 +688,36 @@ const rules = {
   ],
 }
 
+const platformType = ref<any[]>([
+  {
+    icon: logo_wechat_work,
+    value: 6,
+    name: 'sync.sync_wechat_users',
+  },
+  {
+    icon: logo_dingtalk,
+    value: 7,
+    name: 'sync.sync_dingtalk_users',
+  },
+  {
+    icon: logo_lark,
+    value: 8,
+    name: 'sync.sync_lark_users',
+  },
+])
+
+const refresh = (res: any) => {
+  showTips(res.successCount, res.errorCount, res.dataKey)
+  if (res.successCount) {
+    handleCurrentChange(1)
+  }
+}
+
+const handleSyncUser = (ele: any) => {
+  currentPlatform.value = ele
+  syncUserRef.value.open(ele.value, ele.name)
+}
+
 const passwordRules = {
   new: [
     {
@@ -525,6 +741,14 @@ const closeResetInfo = (row: any) => {
 }
 const setPopoverRef = (el: any, row: any) => {
   row.popoverRef = el
+}
+
+const loadData = () => {
+  const url = '/system/platform'
+  request.get(url).then((res: any) => {
+    const idArr = res.filter((card: any) => card.valid && card.enable).map((ele: any) => ele.id)
+    platformType.value = platformType.value.filter((card: any) => idArr.includes(card.value))
+  })
 }
 
 const copyText = () => {
@@ -570,6 +794,10 @@ const handleClosePassword = () => {
   dialogVisiblePassword.value = false
 }
 
+const deleteValues = (index: number) => {
+  state.form.system_variables.splice(index, 1)
+}
+
 const handleEditPassword = (id: any) => {
   userApi.pwd(id).then(() => {
     ElMessage({
@@ -579,9 +807,9 @@ const handleEditPassword = (id: any) => {
   })
 }
 
-// const handleUserImport = () => {
-//   userImportRef.value.showDialog()
-// }
+/* const handleUserImport = () => {
+  userImportRef.value.showDialog()
+} */
 
 const handleConfirmPassword = () => {
   passwordRef.value.validate((val: any) => {
@@ -625,7 +853,10 @@ const handleToggleRowSelection = (check: boolean = true) => {
   isIndeterminate.value = !(i === 0 || i === state.tableData.length)
   selectionLoading.value = false
 }
-const handleSearch = () => {
+const handleSearch = ($event: any = {}) => {
+  if ($event?.isComposing) {
+    return
+  }
   state.pageInfo.currentPage = 1
   search()
 }
@@ -648,7 +879,8 @@ const clearFilter = (params?: number) => {
 const searchCondition = (conditions: any) => {
   state.conditions = conditions
   fillFilterText()
-  search()
+  handleCurrentChange(1)
+
   drawerMainClose()
 }
 const drawerMainOpen = async () => {
@@ -658,11 +890,45 @@ const drawerMainClose = () => {
   drawerMainRef.value.close()
 }
 const editHandler = (row: any) => {
-  if (row) {
-    state.form = { ...row }
-  }
-  dialogFormVisible.value = true
-  dialogTitle.value = row?.id ? t('user.edit_user') : t('user.add_users')
+  variablesApi
+    .listAll()
+    .then((res: any) => {
+      variables.value = res.filter((ele: any) => ele.type === 'custom')
+      variableValueMap.value = variables.value.reduce((pre, next) => {
+        pre[next.id] = {
+          value: next.value,
+          var_type: next.var_type,
+          name: next.name,
+        }
+        return pre
+      }, {})
+
+      if (row) {
+        state.form = {
+          ...row,
+          system_variables: (row.system_variables || []).map((ele: any) => ({
+            ...ele,
+            variableValue: ele.variableValues[0],
+          })),
+        }
+      }
+    })
+    .finally(() => {
+      state.form.system_variables = state.form.system_variables.filter((ele: any) => {
+        if (variableValueMap.value[ele.variableId]) {
+          if (variableValueMap.value[ele.variableId].var_type === 'text') {
+            ele.variableValues = variableValueMap.value[ele.variableId].value.filter(
+              (item: any) => ele.variableValues.indexOf(item) > -1
+            )
+            return !!ele.variableValues.length
+          }
+          return true
+        }
+        return false
+      })
+      dialogTitle.value = row?.id ? t('user.edit_user') : t('user.add_users')
+      dialogFormVisible.value = true
+    })
 }
 
 const statusHandler = (row: any) => {
@@ -695,7 +961,7 @@ const deleteBatchUser = () => {
         type: 'success',
         message: t('dashboard.delete_success'),
       })
-      search()
+      handleCurrentChange(1)
     })
   })
 }
@@ -713,7 +979,7 @@ const deleteHandler = (row: any) => {
         type: 'success',
         message: t('dashboard.delete_success'),
       })
-      search()
+      handleCurrentChange(1)
     })
   })
 }
@@ -741,6 +1007,11 @@ const configParams = () => {
     })
   })
 
+  if (state.pageInfo.sortColumn) {
+    str += str ? `&order_by=${state.pageInfo.sortColumn}` : `order_by=${state.pageInfo.sortColumn}`
+    str += `&desc=${state.pageInfo.sortOrder === 'descending'}`
+  }
+
   if (str.length) {
     str = `?${str}`
   }
@@ -760,25 +1031,52 @@ const search = () => {
       })
     })
 }
+
+const formatVariableValues = () => {
+  if (!state.form.system_variables?.length) return []
+  return state.form.system_variables.map((ele: any) => ({
+    variableId: ele.variableId,
+    variableValues: ['number', 'datetime'].includes(variableValueMap.value[ele.variableId].var_type)
+      ? [ele.variableValue]
+      : ele.variableValues,
+  }))
+}
+
 const addTerm = () => {
   const { account, email, name, oid, status, oid_list } = state.form
-  userApi.add({ account, email, name, oid, status, oid_list }).then(() => {
-    onFormClose()
-    search()
-    ElMessage({
-      type: 'success',
-      message: t('common.save_success'),
+  userApi
+    .add({ account, email, name, oid, status, oid_list, system_variables: formatVariableValues() })
+    .then(() => {
+      onFormClose()
+      handleCurrentChange(1)
+
+      ElMessage({
+        type: 'success',
+        message: t('common.save_success'),
+      })
     })
-  })
 }
 const editTerm = () => {
   const { account, id, create_time, email, language, name, oid, oid_list, origin, status } =
     state.form
   userApi
-    .edit({ account, id, create_time, email, language, name, oid, oid_list, origin, status })
+    .edit({
+      account,
+      id,
+      create_time,
+      email,
+      language,
+      name,
+      oid,
+      oid_list,
+      origin,
+      status,
+      system_variables: formatVariableValues(),
+    })
     .then(() => {
       onFormClose()
-      search()
+      handleCurrentChange(1)
+
       ElMessage({
         type: 'success',
         message: t('common.save_success'),
@@ -794,9 +1092,55 @@ const duplicateName = () => {
   }
 }
 
+const validateSystemVariables = () => {
+  const { system_variables = [] } = state.form
+  if (system_variables?.length) {
+    return system_variables.some((ele: any) => {
+      const obj = variableValueMap.value[ele.variableId]
+      if (obj.var_type === 'text' && !ele.variableValues.length) {
+        ElMessage.error(t('variables.​​cannot_be_empty'))
+        return true
+      }
+
+      if (obj.var_type === 'number' && [null, undefined, ''].includes(ele.variableValue)) {
+        ElMessage.error(t('variables.​​cannot_be_empty'))
+        return true
+      }
+
+      if (obj.var_type === 'number') {
+        const [min, max] = obj.value
+        if (ele.variableValue > max || ele.variableValue < min) {
+          ElMessage.error(t('variables.1_to_100', { name: obj.name, min, max }))
+          return true
+        }
+      }
+
+      if (obj.var_type === 'datetime') {
+        const [min, max] = obj.value
+        if (
+          +new Date(ele.variableValue) > +new Date(max) ||
+          +new Date(ele.variableValue) < +new Date(min)
+        ) {
+          ElMessage.error(
+            t('variables.1_to_100_de', {
+              name: obj.name,
+              min,
+              max,
+            })
+          )
+          return true
+        }
+      }
+    })
+  }
+
+  return false
+}
+
 const saveHandler = () => {
   termFormRef.value.validate((res: any) => {
     if (res) {
+      if (validateSystemVariables()) return
       duplicateName()
     }
   })
@@ -808,6 +1152,12 @@ const handleSizeChange = (val: number) => {
 }
 const handleCurrentChange = (val: number) => {
   state.pageInfo.currentPage = val
+  search()
+}
+const handleSortChange = ({ prop, order }: any) => {
+  state.pageInfo.sortColumn = order ? prop : ''
+  state.pageInfo.sortOrder = order || ''
+  state.pageInfo.currentPage = 1
   search()
 }
 const formatSpaceName = (row_oid_list: Array<any>) => {
@@ -831,17 +1181,128 @@ const formatUserOrigin = (origin?: number) => {
   if (!origin) {
     return t('user.local_creation')
   }
-  const originArray = ['CAS', 'OIDC', 'LDAP', 'OAuth2', 'SAML2']
+  const originArray = [
+    'CAS',
+    'OIDC',
+    'LDAP',
+    'OAuth2',
+    'SAML2',
+    t('user.wecom'),
+    t('user.dingtalk'),
+    t('user.lark'),
+    t('user.larksuite'),
+  ]
   return originArray[origin - 1]
 }
+
+const showSyncBtn = ref(false)
 onMounted(() => {
+  // eslint-disable-next-line no-undef
+  const obj = LicenseGenerator.getLicense()
+  if (obj?.status === 'valid') {
+    showSyncBtn.value = true
+    loadData()
+  } else {
+    platformType.value = []
+  }
+
   workspaceList().then((res) => {
     options.value = res || []
     filterOption.value[2].option = [...options.value]
   })
-  search()
+  handleCurrentChange(1)
+
   loadDefaultPwd()
 })
+const downErrorExcel = (dataKey: any) => {
+  userApi.errorRecord(dataKey).then((res: any) => {
+    const blob = new Blob([res], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    const link = document.createElement('a')
+    link.style.display = 'none'
+    link.href = URL.createObjectURL(blob)
+    link.download = 'error.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  })
+}
+
+const showTips = (successCount: any, errorCount: any, dataKey: any) => {
+  let title = successCount ? t('sync.sync_complete') : t('sync.sync_failed')
+  const childrenDomList = [h('span', null, t('sync.synced_10_users', { num: successCount }))]
+  const contentDomList = h(
+    'div',
+    {
+      style: 'display: flex;align-items: center;',
+    },
+    childrenDomList
+  )
+  const headerDomList = [
+    h(
+      'div',
+      {
+        style: 'font-weight: 500;font-size: 16px;line-height: 24px;margin-bottom: 24px',
+      },
+      title
+    ),
+
+    contentDomList,
+  ]
+
+  if (successCount && errorCount) {
+    childrenDomList.pop()
+    const halfCountDom = h(
+      'span',
+      null,
+      t('sync.failed_3_users', { success: successCount, failed: errorCount })
+    )
+    childrenDomList.push(halfCountDom)
+  }
+
+  if (!successCount && errorCount) {
+    const errorCountDom = h('span', null, t('sync.failed_10_users', { num: errorCount }))
+    childrenDomList.pop()
+    childrenDomList.push(errorCountDom)
+  }
+
+  if (errorCount) {
+    const errorDom = h('div', { class: 'error-record-tip flex-align-center' }, [
+      h(
+        ElButton,
+        {
+          onClick: () => downErrorExcel(dataKey),
+          text: true,
+          class: 'down-button',
+        },
+        t('sync.download_failure_list')
+      ),
+    ])
+
+    childrenDomList.push(errorDom)
+  }
+  ElMessageBox.confirm('', {
+    confirmButtonType: 'primary',
+    autofocus: false,
+    dangerouslyUseHTMLString: true,
+    message: h(
+      'div',
+      { class: 'sync-tip-box' },
+
+      headerDomList
+    ),
+    cancelButtonText: t('sync.return_to_view'),
+    confirmButtonText: t('sync.continue_syncing'),
+  })
+    .then(() => {
+      const { value, name } = currentPlatform.value
+      syncUserRef.value.open(value, name)
+    })
+    .catch(() => {
+      currentPlatform.value = null
+    })
+}
 </script>
 
 <style lang="less" scoped>
@@ -986,6 +1447,54 @@ onMounted(() => {
 </style>
 
 <style lang="less">
+.ed-message-box:has(.sync-tip-box) {
+  padding: 24px;
+}
+.sync-tip-box {
+  .error-record-tip {
+    display: inline-block;
+  }
+}
+.sync-platform.sync-platform {
+  padding: 4px 0;
+  width: 180px !important;
+  box-shadow: 0px 4px 8px 0px #1f23291a;
+  border: 1px solid #dee0e3;
+
+  .popover {
+    .popover-content {
+      padding: 4px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .popover-item {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      padding-left: 12px;
+      padding-right: 8px;
+      position: relative;
+      border-radius: 6px;
+      cursor: pointer;
+
+      &:not(:last-child) {
+        margin-bottom: 2px;
+      }
+
+      &:hover {
+        background: #1f23291a;
+      }
+
+      .model-name {
+        margin-left: 8px;
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 22px;
+        max-width: 220px;
+      }
+    }
+  }
+}
 .reset-pwd-confirm {
   padding: 5px 15px;
   .confirm-header {
@@ -1035,6 +1544,61 @@ onMounted(() => {
   }
 }
 .user-add-class {
+  .ed-form-item__label:has(.btn) {
+    padding-right: 0;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  .value-list {
+    width: 100%;
+    padding: 16px;
+    border-radius: 6px;
+    background-color: #f5f6f7;
+    .title {
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 22px;
+      margin-bottom: 8px;
+      display: flex;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+
+      &:not(:last-child) {
+        margin-bottom: 8px;
+      }
+
+      .action-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        color: #646a73;
+
+        &:hover {
+          background-color: #1f23291a;
+        }
+      }
+    }
+  }
+  .btn {
+    margin-left: auto;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border-radius: 6px;
+    margin-right: -4px;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #1f23291a;
+    }
+  }
   .down-template {
     display: flex;
     width: 100%;
@@ -1042,7 +1606,7 @@ onMounted(() => {
     align-items: center;
     line-height: 40px;
     background: var(--ed-color-primary-80, #d2f1e9);
-    border-radius: 4px;
+    border-radius: 6px;
     padding-left: 10px;
     .icon-span {
       color: var(--ed-color-primary);

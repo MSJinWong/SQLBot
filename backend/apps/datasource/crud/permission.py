@@ -3,8 +3,9 @@ from typing import List, Optional
 
 from sqlalchemy import and_
 
-from apps.datasource.models.ds_permission import DsPermission, DsRules
-from apps.datasource.schemas.permission_schema import PermissionDTO, transRecord2DTO
+from sqlbot_xpack.permissions.api.permission import transRecord2DTO
+from sqlbot_xpack.permissions.models.ds_permission import DsPermission, PermissionDTO
+from sqlbot_xpack.permissions.models.ds_rules import DsRules
 from apps.datasource.crud.row_permission import transFilterTree
 from apps.datasource.models.datasource import CoreDatasource, CoreField, CoreTable
 from common.core.deps import CurrentUser, SessionDep
@@ -39,8 +40,9 @@ def get_row_permission_filters(session: SessionDep, current_user: CurrentUser, d
                             break
                     if flag:
                         res.append(transRecord2DTO(session, permission))
-            where_str = transFilterTree(session, res, ds)
-            filters.append({"table": table.table_name, "filter": where_str})
+            where_str = transFilterTree(session, current_user, res, ds)
+            if where_str:
+                filters.append({"table": table.table_name, "filter": where_str})
     return filters
 
 

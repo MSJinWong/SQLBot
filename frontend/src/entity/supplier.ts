@@ -10,6 +10,7 @@ import icon_txhy_colorful from '@/assets/model/icon_txhy_colorful.png'
 import icon_hsyq_colorful from '@/assets/model/icon_hsyq_colorful.png'
 // import icon_vllm_colorful from '@/assets/model/icon_vllm_colorful.png'
 import icon_common_openai from '@/assets/model/icon_common_openai.png'
+import icon_minimax_colorful from '@/assets/model/icon_minimax_colorful.png'
 // import icon_azure_openAI_colorful from '@/assets/model/icon_Azure_OpenAI_colorful.png'
 
 type ModelArg = { key: string; val?: string | number; type: string; range?: string }
@@ -45,6 +46,10 @@ export const supplierList: Array<{
           { key: 'extra_body', val: '{"enable_thinking": false}', type: 'json' },
         ],
         model_options: [
+          { name: 'qwen3.6-plus' },
+          { name: 'qwen3.5-plus' },
+          { name: 'qwen3.5-flash' },
+          { name: 'qwen3-coder-next' },
           { name: 'qwen3-coder-plus' },
           { name: 'qwen3-coder-flash' },
           { name: 'qwen-plus' },
@@ -271,8 +276,21 @@ export const supplierList: Array<{
           { name: 'doubao-1-5-pro-32k-character-250715' },
           { name: 'kimi-k2-250711' },
           { name: 'deepseek-v3-250324' },
-          { name: 'deepseek-r1' },
+          { name: 'deepseek-v4-pro-260425' },
         ],
+      },
+    },
+  },
+  {
+    id: 13,
+    name: 'MiniMax',
+    i18nKey: 'supplier.minimax',
+    icon: icon_minimax_colorful,
+    model_config: {
+      0: {
+        api_domain: 'https://api.minimax.io/v1',
+        common_args: [{ key: 'temperature', val: 0.7, type: 'number', range: '[0, 1]' }],
+        model_options: [{ name: 'MiniMax-M3' }, { name: 'MiniMax-M2.7' }],
       },
     },
   },

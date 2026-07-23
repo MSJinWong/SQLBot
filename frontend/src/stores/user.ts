@@ -4,7 +4,7 @@ import { AuthApi } from '@/api/login'
 import { useCache } from '@/utils/useCache'
 import { i18n } from '@/i18n'
 import { store } from './index'
-import { getQueryString } from '@/utils/utils'
+import { getCurrentRouter, getQueryString, getSQLBotAddr, isPlatform } from '@/utils/utils'
 
 const { wsCache } = useCache()
 
@@ -98,8 +98,15 @@ export const UserStore = defineStore('user', {
         window.open(res, '_self')
         return res
       }
-      if (getQueryString('code') && getQueryString('state')?.includes('oauth2_state')) {
-        const logout_url = location.origin + location.pathname + '#/login'
+      if (
+        (getQueryString('code') && getQueryString('state')?.includes('oauth2_state')) ||
+        isPlatform()
+      ) {
+        const currentPath = getCurrentRouter()
+        let logout_url = getSQLBotAddr() + '#/login'
+        if (currentPath) {
+          logout_url += `?redirect=${currentPath}`
+        }
         window.location.href = logout_url
         window.open(res, logout_url)
         return logout_url
@@ -135,6 +142,7 @@ export const UserStore = defineStore('user', {
       })
 
       this.setLanguage(this.language)
+      this.platformInfo = wsCache.get('user.platformInfo')
     },
     setToken(token: string) {
       wsCache.set('user.token', token)
@@ -169,6 +177,8 @@ export const UserStore = defineStore('user', {
         language = 'zh-CN'
       } else if (language === 'zh_CN') {
         language = 'zh-CN'
+      } else if (language === 'zh_TW') {
+        language = 'zh-TW'
       } else if (language === 'ko_KR') {
         language = 'ko-KR'
       }

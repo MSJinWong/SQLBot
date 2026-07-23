@@ -361,7 +361,7 @@ onMounted(() => {
         column-gap: 12px;
         align-items: center;
         padding: 8px 16px;
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
         border: none;
         font-weight: 500;
@@ -492,7 +492,7 @@ onMounted(() => {
             column-gap: 12px;
             align-items: center;
             padding: 8px 16px;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
             border: none;
             font-weight: 500;

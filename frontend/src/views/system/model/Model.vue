@@ -15,8 +15,12 @@ import Card from './Card.vue'
 import { getModelTypeName } from '@/entity/CommonEntity.ts'
 import { useI18n } from 'vue-i18n'
 import { get_supplier } from '@/entity/supplier'
+import { highlightKeyword } from '@/utils/xss'
+import AuthorizedWorkspaceDialogForModel from '@/views/system/workspace/AuthorizedWorkspaceDialogForModel.vue'
+import AuthorizedWorkspaceDraw from '@/views/system/workspace/AuthorizedWorkspaceDraw.vue'
 
 interface Model {
+  ws_mapping_count: number | undefined
   name: string
   model_type: string
   base_model: string
@@ -170,11 +174,8 @@ const handleDefaultModelChange = (item: any) => {
 }
 
 const formatKeywords = (item: string) => {
-  if (!defaultModelKeywords.value) return item
-  return item.replaceAll(
-    defaultModelKeywords.value,
-    `<span class="isSearch">${defaultModelKeywords.value}</span>`
-  )
+  // Use XSS-safe highlight function
+  return highlightKeyword(item, defaultModelKeywords.value, 'isSearch')
 }
 const handleAddModel = () => {
   activeStep.value = 0
@@ -249,6 +250,16 @@ const deleteHandler = (item: any) => {
       }
     },
   })
+}
+
+const AuthorizedWorkspaceDialogForModelRef = ref()
+const AuthorizedWorkspaceDrawRef = ref()
+
+const handleAuthorizedSpace = (item: any) => {
+  AuthorizedWorkspaceDialogForModelRef.value.open(item.id)
+}
+const handleEditWorkspaceList = (item: any) => {
+  AuthorizedWorkspaceDrawRef.value.open(item.id)
 }
 
 const clickModel = (ele: any) => {
@@ -389,6 +400,7 @@ const submit = (item: any) => {
             :ref="(el: any) => setCardRef(el, index)"
             :key="ele.id"
             :name="ele.name"
+            :num="ele.ws_mapping_count"
             :supplier="ele.supplier"
             :model-type="getModelTypeName(ele['model_type'])"
             :base-model="ele['base_model']"
@@ -396,6 +408,8 @@ const submit = (item: any) => {
             @edit="handleEditModel(ele)"
             @del="deleteHandler"
             @default="handleDefault(ele)"
+            @authorized-space="handleAuthorizedSpace(ele)"
+            @edit-workspace-list="handleEditWorkspaceList(ele)"
           ></card>
         </el-col>
       </el-row>
@@ -428,7 +442,9 @@ const submit = (item: any) => {
     >
       <template #header="{ close }">
         <span style="white-space: nowrap">{{
-          editModel ? $t('dashboard.edit') + $t('common.empty') + $t(activeNameI18nKey) : t('model.add_model')
+          editModel
+            ? $t('dashboard.edit') + $t('common.empty') + $t(activeNameI18nKey)
+            : t('model.add_model')
         }}</span>
         <div v-if="!editModel" class="flex-center" style="width: 100%">
           <el-steps custom style="max-width: 500px; flex: 1" :active="activeStep" align-center>
@@ -468,6 +484,8 @@ const submit = (item: any) => {
       </template>
     </el-drawer>
   </div>
+  <AuthorizedWorkspaceDialogForModel ref="AuthorizedWorkspaceDialogForModelRef" @refresh="search" />
+  <AuthorizedWorkspaceDraw ref="AuthorizedWorkspaceDrawRef" @refresh="search" />
 </template>
 
 <style lang="less" scoped>
@@ -537,7 +555,7 @@ const submit = (item: any) => {
       padding-right: 8px;
       margin-bottom: 2px;
       position: relative;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       &:not(.empty):hover {
         background: #1f23291a;

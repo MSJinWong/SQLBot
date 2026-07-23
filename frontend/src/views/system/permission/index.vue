@@ -871,7 +871,7 @@ const columnRules = {
           <el-input
             v-if="ruleType !== 1"
             v-model="searchColumn"
-            :placeholder="$t('permission.search_rule_group')"
+            :placeholder="$t('permission.search_field')"
             autocomplete="off"
             clearable
             ><template #prefix>
@@ -1107,7 +1107,7 @@ const columnRules = {
       padding-left: 12px;
       padding-right: 8px;
       position: relative;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       &:hover {
         background: #1f23291a;

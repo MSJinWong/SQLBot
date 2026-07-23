@@ -5,6 +5,7 @@ import MdComponent from '@/views/chat/component/MdComponent.vue'
 import icon_up_outlined from '@/assets/svg/icon_up_outlined.svg'
 import icon_down_outlined from '@/assets/svg/icon_down_outlined.svg'
 import { useI18n } from 'vue-i18n'
+import { useChatConfigStore } from '@/stores/chatConfig.ts'
 
 const props = withDefaults(
   defineProps<{
@@ -23,6 +24,8 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+
+const chatConfig = useChatConfigStore()
 
 const show = ref<boolean>(false)
 
@@ -47,10 +50,12 @@ const reasoningContent = computed<Array<string>>(() => {
 })
 
 const hasReasoning = computed<boolean>(() => {
-  if (reasoningContent.value.length > 0) {
-    for (let i = 0; i < reasoningContent.value.length; i++) {
-      if (reasoningContent.value[i] && reasoningContent.value[i].trim() !== '') {
-        return true
+  if (!chatConfig.getHideThinkingBlock) {
+    if (reasoningContent.value.length > 0) {
+      for (let i = 0; i < reasoningContent.value.length; i++) {
+        if (reasoningContent.value[i] && reasoningContent.value[i].trim() !== '') {
+          return true
+        }
       }
     }
   }
@@ -63,7 +68,8 @@ function clickShow() {
 
 onMounted(() => {
   if (props.message.isTyping) {
-    show.value = true
+    // 根据配置项是否默认展开
+    show.value = chatConfig.getExpandThinkingBlock
   }
 })
 </script>
@@ -84,7 +90,7 @@ onMounted(() => {
         </span>
       </div>
     </el-button>
-    <div v-if="hasReasoning && show" class="reasoning-content">
+    <div v-if="hasReasoning && show" class="reasoning-content flex-gap-fallback flex-col">
       <div v-for="(reason, _index) in reasoningContent" :key="_index" class="reasoning">
         <MdComponent :message="reason" />
       </div>
@@ -136,6 +142,7 @@ onMounted(() => {
     flex-direction: column;
     padding-left: 9px;
     border-left: 1px solid rgba(31, 35, 41, 0.15);
+    --gap-size: 8px;
     gap: 8px;
 
     .reasoning {

@@ -1,24 +1,32 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, toRefs } from 'vue'
 import { endsWith, startsWith } from 'lodash-es'
-import { chatApi } from '@/api/chat.ts'
+import { chatApi, ChatInfo } from '@/api/chat.ts'
+import { recommendedApi } from '@/api/recommendedApi.ts'
 
 const props = withDefaults(
   defineProps<{
     recordId?: number
     disabled?: boolean
+    datasource?: number
+    currentChat?: ChatInfo
   }>(),
   {
     recordId: undefined,
     disabled: false,
+    datasource: undefined,
+    chatRecommendedQuestions: undefined,
+    currentChat: () => new ChatInfo(),
   }
 )
+
+const { currentChat } = toRefs(props)
 
 const emits = defineEmits(['clickQuestion', 'stop', 'loadingOver'])
 
 const loading = ref(false)
 
-const questions = ref('[]')
+const questions = ref<string | undefined>('[]')
 
 const computedQuestions = computed<string>(() => {
   if (
@@ -40,7 +48,19 @@ function clickQuestion(question: string): void {
 
 const stopFlag = ref(false)
 
-async function getRecommendQuestions(articles_number: number) {
+async function getRecommendQuestions(articles_number: number, isRetrieve: false) {
+  recommendedApi.get_datasource_recommended_base(props.datasource).then((res) => {
+    if (res.recommended_config === 2) {
+      questions.value = res.questions
+    } else if (currentChat.value.recommended_generate && !isRetrieve) {
+      questions.value = currentChat.value.recommended_question as string
+    } else {
+      getRecommendQuestionsLLM(articles_number)
+    }
+  })
+}
+
+async function getRecommendQuestionsLLM(articles_number: number) {
   stopFlag.value = false
   loading.value = true
   try {
@@ -103,6 +123,8 @@ async function getRecommendQuestions(articles_number: number) {
                   endsWith(data.content.trim(), ']')
                 ) {
                   questions.value = data.content
+                  currentChat.value.recommended_question = data.content
+                  currentChat.value.recommended_generate = true
                   await nextTick()
                 }
             }
@@ -126,12 +148,15 @@ onBeforeUnmount(() => {
   stop()
 })
 
-defineExpose({ getRecommendQuestions, id: () => props.recordId, stop })
+defineExpose({ getRecommendQuestions, id: () => props.recordId, stop, getRecommendQuestionsLLM })
 </script>
 
 <template>
   <div style="width: 100%; height: 100%">
-    <div v-if="computedQuestions.length > 0 || loading" class="recommend-questions">
+    <div
+      v-if="computedQuestions.length > 0 || loading"
+      class="recommend-questions flex-gap-fallback flex-col"
+    >
       <div v-if="loading">
         <el-button style="min-width: unset" type="primary" link loading />
       </div>
@@ -162,6 +187,7 @@ defineExpose({ getRecommendQuestions, id: () => props.recordId, stop })
   line-height: 22px;
   display: flex;
   flex-direction: column;
+  --gap-size: 4px;
   gap: 4px;
 
   .continue-ask {
@@ -185,7 +211,7 @@ defineExpose({ getRecommendQuestions, id: () => props.recordId, stop })
     font-weight: 400;
     cursor: pointer;
     height: 32px;
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 5px 8px;
     line-height: 22px;
     white-space: nowrap; /* 禁止换行 */

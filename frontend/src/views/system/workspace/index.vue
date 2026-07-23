@@ -230,7 +230,10 @@ const handleAddMember = () => {
 const refresh = () => {
   search()
 }
-const search = () => {
+const search = ($event: any = {}) => {
+  if ($event?.isComposing) {
+    return
+  }
   workspaceUserList(
     { oid: currentTable.value.id, keyword: keywordsMember.value },
     pageInfo.currentPage,
@@ -415,7 +418,7 @@ const handleCurrentChange = (val: number) => {
             clearable
             style="width: 232px"
             :placeholder="$t('workspace.name_username_email')"
-            @blur="search"
+            @keydown.enter.exact.prevent="search"
           >
             <template #prefix>
               <el-icon>
@@ -425,7 +428,10 @@ const handleCurrentChange = (val: number) => {
           </el-input>
         </div>
       </div>
-      <div class="table-content" :class="multipleSelectionAll.length && 'show-pagination_height'">
+      <div
+        class="table-content"
+        :class="{ 'show-pagination_height': multipleSelectionAll.length > 0 }"
+      >
         <div class="preview-or-schema">
           <el-table
             ref="multipleTableRef"
@@ -695,7 +701,7 @@ const handleCurrentChange = (val: number) => {
         display: flex;
         align-items: center;
         padding-left: 8px;
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
         padding-right: 8px;
         margin-bottom: 2px;
@@ -870,7 +876,7 @@ const handleCurrentChange = (val: number) => {
 <style lang="less">
 .popover-card_workspack.popover-card_workspack.popover-card_workspack {
   box-shadow: 0px 4px 8px 0px #1f23291a;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid #dee0e3;
   width: fit-content !important;
   min-width: 120px !important;
@@ -907,7 +913,7 @@ const handleCurrentChange = (val: number) => {
         content: '';
         width: calc(100% - 8px);
         height: 32px;
-        border-radius: 4px;
+        border-radius: 6px;
         position: absolute;
         top: 50%;
         left: 50%;
@@ -947,7 +953,7 @@ const handleCurrentChange = (val: number) => {
       padding-left: 12px;
       padding-right: 8px;
       position: relative;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       &:hover {
         background: #1f23291a;

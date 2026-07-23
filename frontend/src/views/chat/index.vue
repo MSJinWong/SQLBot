@@ -6,7 +6,7 @@
     size="20"
     @click="showFloatPopover"
   >
-    <icon_sidebar_outlined></icon_sidebar_outlined>
+    <icon_sidebar_outlined_nofill />
   </el-icon>
   <el-container class="chat-container no-padding">
     <el-aside
@@ -112,15 +112,15 @@
         }"
       >
         <div v-if="computedMessages.length == 0 && !loading" class="welcome-content-block">
-          <div class="welcome-content">
+          <div class="welcome-content flex-gap-fallback flex-col">
             <template v-if="isCompletePage">
-              <div class="greeting">
+              <div class="greeting flex-gap-fallback">
                 <img v-if="loginBg" height="32" width="32" :src="loginBg" alt="" />
                 <el-icon v-else size="32"
                   ><custom_small v-if="appearanceStore.themeColor !== 'default'"></custom_small>
                   <LOGO_fold v-else></LOGO_fold
                 ></el-icon>
-                {{ appearanceStore.pc_welcome ?? '你好，我是 SQLBot' }}
+                <span>{{ appearanceStore.pc_welcome ?? '你好，我是 SQLBot' }}</span>
               </div>
               <div class="sub">
                 {{
@@ -147,7 +147,7 @@
             </div>
 
             <el-button
-              v-if="isCompletePage && currentChatId === undefined"
+              v-if="(isCompletePage || selectAssistantDs) && currentChatId === undefined"
               size="large"
               type="primary"
               class="greeting-btn"
@@ -190,6 +190,7 @@
             :class="{
               'no-sidebar': isCompletePage && !chatListSideBarShow,
               pad16: !isCompletePage,
+              pad8: isPhone,
             }"
           >
             <template v-for="(message, _index) in computedMessages" :key="_index">
@@ -211,7 +212,11 @@
                 <!--                  @stop="onChatStop"-->
                 <!--                  @loading-over="loadingOver"-->
                 <!--                />-->
-                <UserChat v-if="message.role === 'user'" :message="message" />
+                <UserChat
+                  v-if="message.role === 'user'"
+                  :message="message"
+                  :all-messages="computedMessages"
+                />
                 <template v-if="message.role === 'assistant' && !message.first_chat">
                   <ChartAnswer
                     v-if="
@@ -235,6 +240,11 @@
                   >
                     <ErrorInfo :error="message.record?.error" class="error-container" />
                     <template #tool>
+                      <ChatTokenTime
+                        :record-id="message.record?.id"
+                        :duration="message.record?.duration"
+                        :total-tokens="message.record?.total_tokens"
+                      />
                       <ChatToolBar v-if="!message.isTyping" :message="message">
                         <div class="tool-btns">
                           <el-tooltip
@@ -325,6 +335,11 @@
                   >
                     <ErrorInfo :error="message.record?.error" class="error-container" />
                     <template #tool>
+                      <ChatTokenTime
+                        :record-id="message.record?.id"
+                        :duration="message.record?.duration"
+                        :total-tokens="message.record?.total_tokens"
+                      />
                       <ChatToolBar v-if="!message.isTyping" :message="message" />
                     </template>
                   </AnalysisAnswer>
@@ -347,6 +362,11 @@
                   >
                     <ErrorInfo :error="message.record?.error" class="error-container" />
                     <template #tool>
+                      <ChatTokenTime
+                        :record-id="message.record?.id"
+                        :duration="message.record?.duration"
+                        :total-tokens="message.record?.total_tokens"
+                      />
                       <ChatToolBar v-if="!message.isTyping" :message="message" />
                     </template>
                   </PredictAnswer>
@@ -356,9 +376,12 @@
           </div>
         </el-scrollbar>
       </el-main>
-      <el-footer v-if="computedMessages.length > 0 || !isCompletePage" class="chat-footer">
+      <el-footer
+        v-if="computedMessages.length > 0 || (!isCompletePage && !selectAssistantDs)"
+        class="chat-footer"
+      >
         <div class="input-wrapper" @click="clickInput">
-          <div v-if="isCompletePage" class="datasource">
+          <div v-if="isCompletePage || selectAssistantDs" class="datasource">
             <template v-if="currentChat.datasource && currentChat.datasource_name">
               {{ t('qa.selected_datasource') }}:
               <img
@@ -393,11 +416,11 @@
             :disabled="isTyping"
             clearable
             class="input-area"
-            :class="!isCompletePage && 'is-assistant'"
+            :class="!isCompletePage && !selectAssistantDs && 'is-assistant'"
             type="textarea"
             :autosize="{ minRows: 1, maxRows: 8.583 }"
             :placeholder="t('qa.question_placeholder')"
-            @keydown.enter.exact.prevent="($event: any) => sendMessage($event)"
+            @keydown.enter.exact.prevent="($event: any) => sendMessage(undefined, $event)"
             @keydown.ctrl.enter.exact.prevent="handleCtrlEnter"
           />
 
@@ -406,7 +429,7 @@
             type="primary"
             class="input-icon"
             :disabled="isTyping"
-            @click.stop="sendMessage"
+            @click.stop="($event: any) => sendMessage(undefined, $event)"
           >
             <el-icon size="16">
               <icon_send_filled />
@@ -416,7 +439,11 @@
       </el-footer>
     </el-container>
 
-    <ChatCreator v-if="isCompletePage" ref="chatCreatorRef" @on-chat-created="onChatCreatedQuick" />
+    <ChatCreator
+      v-if="isCompletePage || selectAssistantDs"
+      ref="chatCreatorRef"
+      @on-chat-created="onChatCreatedQuick"
+    />
     <ChatCreator ref="hiddenChatCreatorRef" hidden @on-chat-created="onChatCreatedQuick" />
   </el-container>
 </template>
@@ -432,6 +459,7 @@ import UserChat from './chat-block/UserChat.vue'
 import RecommendQuestion from './RecommendQuestion.vue'
 import ChatListContainer from './ChatListContainer.vue'
 import ChatCreator from '@/views/chat/ChatCreator.vue'
+import ChatTokenTime from '@/views/chat/ChatTokenTime.vue'
 import ErrorInfo from './ErrorInfo.vue'
 import ChatToolBar from './ChatToolBar.vue'
 import { dsTypeWithImg } from '@/views/ds/js/ds-type'
@@ -441,6 +469,7 @@ import custom_small from '@/assets/svg/logo-custom_small.svg'
 import LOGO_fold from '@/assets/LOGO-fold.svg'
 import icon_new_chat_outlined from '@/assets/svg/icon_new_chat_outlined.svg'
 import icon_sidebar_outlined from '@/assets/svg/icon_sidebar_outlined.svg'
+import icon_sidebar_outlined_nofill from '@/assets/embedded/icon_sidebar_outlined_nofill.svg'
 import icon_replace_outlined from '@/assets/svg/icon_replace_outlined.svg'
 import icon_screen_outlined from '@/assets/svg/icon_screen_outlined.svg'
 import icon_start_outlined from '@/assets/svg/icon_start_outlined.svg'
@@ -454,6 +483,7 @@ import { debounce } from 'lodash-es'
 import { isMobile } from '@/utils/utils'
 import router from '@/router'
 import QuickQuestion from '@/views/chat/QuickQuestion.vue'
+import { useChatConfigStore } from '@/stores/chatConfig.ts'
 const userStore = useUserStore()
 const props = defineProps<{
   startChatDsId?: number
@@ -477,11 +507,18 @@ const isCompletePage = computed(() => !assistantStore.getAssistant || assistantS
 const embeddedHistoryHidden = computed(
   () => assistantStore.getAssistant && !assistantStore.getHistory
 )
+// const autoDs = computed(() => assistantStore.getAssistant && assistantStore.getAutoDs)
+const selectAssistantDs = computed(() => {
+  return assistantStore.getAssistant && !assistantStore.getAutoDs
+})
 const customName = computed(() => {
   if (!isCompletePage.value && props.pageEmbedded) return props.appName
   return ''
 })
 const { t } = useI18n()
+
+const chatConfig = useChatConfigStore()
+
 const isPhone = computed(() => {
   return isMobile()
 })
@@ -550,6 +587,8 @@ let scrollTime: any
 let scrollingTime: any
 let scrollTopVal = 0
 let scrolling = false
+let userScrolledAway = false // 用户是否主动滚动离开底部
+
 const scrollBottom = () => {
   if (scrolling) return
   if (!isTyping.value && !getRecommendQuestionsLoading.value) {
@@ -569,22 +608,24 @@ const handleScroll = (val: any) => {
   scrollingTime = setTimeout(() => {
     scrolling = false
   }, 400)
-  if (
-    scrollTopVal + 200 <
+
+  const threshold =
     innerRef.value!.clientHeight - (document.querySelector('.chat-record-list')!.clientHeight - 20)
-  ) {
+  const isNearBottom = scrollTopVal + 50 >= threshold
+
+  // 用户滚动离开底部时，标记并停止自动滚动
+  if (!isNearBottom) {
+    userScrolledAway = true
     clearInterval(scrollTime)
     scrollTime = null
     return
   }
 
-  if (
-    !scrollTime &&
-    isTyping.value &&
-    scrollTopVal + 30 <
-      innerRef.value!.clientHeight -
-        (document.querySelector('.chat-record-list')!.clientHeight - 20)
-  ) {
+  // 用户滚回底部时，重置标记
+  userScrolledAway = false
+
+  // 只有用户在底部、没有主动滚走、且正在输入时才启动自动滚动
+  if (!scrollTime && isTyping.value && !userScrolledAway) {
     scrollTime = setInterval(() => {
       scrollBottom()
     }, 300)
@@ -626,7 +667,7 @@ const createNewChat = async () => {
     return
   }
   goEmpty()
-  if (!isCompletePage.value) {
+  if (!isCompletePage.value && !selectAssistantDs.value) {
     currentChat.value = new ChatInfo()
     currentChatId.value = undefined
     return
@@ -735,6 +776,7 @@ async function onChartAnswerFinish(id: number) {
   getRecommendQuestionsLoading.value = true
   loading.value = false
   isTyping.value = false
+  getRecordUsage(id)
   getRecommendQuestions(id)
 }
 
@@ -742,10 +784,10 @@ const loadingOver = () => {
   getRecommendQuestionsLoading.value = false
 }
 
-function onChartAnswerError() {
+function onChartAnswerError(id: number) {
   loading.value = false
   isTyping.value = false
-  console.debug('onChartAnswerError')
+  getRecordUsage(id)
 }
 
 function onChatStop() {
@@ -756,6 +798,7 @@ function onChatStop() {
 const assistantPrepareSend = async () => {
   if (
     !isCompletePage.value &&
+    !selectAssistantDs.value &&
     (currentChatId.value == null || typeof currentChatId.value == 'undefined')
   ) {
     const assistantChat = await assistantStore.setChat()
@@ -764,7 +807,10 @@ const assistantPrepareSend = async () => {
     }
   }
 }
-const sendMessage = async ($event: any = {}) => {
+const sendMessage = async (
+  regenerate_record_id: number | undefined = undefined,
+  $event: any = {}
+) => {
   if ($event?.isComposing) {
     return
   }
@@ -783,6 +829,7 @@ const sendMessage = async ($event: any = {}) => {
   currentRecord.create_time = new Date()
   currentRecord.chat_id = currentChatId.value
   currentRecord.question = inputMessage.value
+  currentRecord.regenerate_record_id = regenerate_record_id
   currentRecord.sql_answer = ''
   currentRecord.sql = ''
   currentRecord.chart_answer = ''
@@ -820,18 +867,31 @@ const analysisAnswerRef = ref()
 async function onAnalysisAnswerFinish(id: number) {
   loading.value = false
   isTyping.value = false
-  console.debug(id)
+  getRecordUsage(id)
   //await getRecommendQuestions(id)
 }
-function onAnalysisAnswerError() {
+function onAnalysisAnswerError(id: number) {
   loading.value = false
   isTyping.value = false
+  getRecordUsage(id)
 }
 
 function askAgain(message: ChatMessage) {
-  inputMessage.value = message.record?.question ?? ''
+  if (message.record?.question?.trim() === '') {
+    return
+  }
+  // regenerate
+  inputMessage.value = '/regenerate'
+  let regenerate_record_id = message.record?.id
+  if (message.record?.id == undefined && message.record?.regenerate_record_id) {
+    //只有当前对话内，上一次执行失败的重试会进这里
+    regenerate_record_id = message.record?.regenerate_record_id
+  }
+  if (regenerate_record_id) {
+    inputMessage.value = inputMessage.value + ' ' + regenerate_record_id
+  }
   nextTick(() => {
-    sendMessage()
+    sendMessage(regenerate_record_id)
   })
 }
 
@@ -875,17 +935,42 @@ async function clickAnalysis(id?: number) {
   return
 }
 
+function getRecordUsage(recordId: any) {
+  console.debug('getRecordUsage id: ', recordId)
+  nextTick(() => {
+    chatApi
+      .get_chart_usage(recordId)
+      .then((res) => {
+        const logHistory = chatApi.toChatLogHistory(res)
+        if (logHistory) {
+          currentChat.value.records.forEach((record) => {
+            if (record.id === recordId) {
+              record.duration = logHistory.duration
+              record.finish_time = logHistory.finish_time
+              record.total_tokens = logHistory.total_tokens
+            }
+          })
+        }
+      })
+      .catch((e) => {
+        console.error(e)
+      })
+  })
+}
+
 const predictAnswerRef = ref()
 
 async function onPredictAnswerFinish(id: number) {
   loading.value = false
   isTyping.value = false
-  console.debug('onPredictAnswerFinish: ', id)
+  // console.debug('onPredictAnswerFinish: ', id)
+  getRecordUsage(id)
   //await getRecommendQuestions(id)
 }
-function onPredictAnswerError() {
+function onPredictAnswerError(id: number) {
   loading.value = false
   isTyping.value = false
+  getRecordUsage(id)
 }
 
 async function clickPredict(id?: number) {
@@ -990,7 +1075,7 @@ function stop(func?: (...p: any[]) => void, ...param: any[]) {
   }
 }
 const showFloatPopover = () => {
-  if (!isCompletePage.value && !floatPopoverVisible.value) {
+  if ((!isCompletePage.value || isPhone.value) && !floatPopoverVisible.value) {
     floatPopoverVisible.value = true
   }
 }
@@ -1042,6 +1127,7 @@ function jumpCreatChat() {
 }
 
 onMounted(() => {
+  chatConfig.fetchGlobalConfig()
   if (isPhone.value) {
     chatListSideBarShow.value = false
     if (props.pageEmbedded) {
@@ -1065,7 +1151,7 @@ onMounted(() => {
     }
   }
   .hidden-sidebar-btn {
-    z-index: 1;
+    z-index: 11;
     position: absolute;
     padding: 16px;
     top: 0;
@@ -1099,6 +1185,8 @@ onMounted(() => {
     border-radius: 0 12px 12px 0;
 
     .no-horizontal.ed-scrollbar {
+      position: relative;
+      z-index: 10;
       .ed-scrollbar__bar.is-horizontal {
         display: none;
       }
@@ -1123,6 +1211,9 @@ onMounted(() => {
     &.no-sidebar {
       padding-left: 96px;
     }
+    &.pad8 {
+      padding: 8px;
+    }
 
     &.pad16 {
       padding-left: 16px;
@@ -1134,6 +1225,8 @@ onMounted(() => {
     min-height: calc(120px + 16px);
     max-height: calc(300px + 16px);
     height: fit-content;
+    position: relative;
+    z-index: 1;
 
     padding-bottom: 16px;
 
@@ -1172,7 +1265,7 @@ onMounted(() => {
       }
 
       .quick_question {
-        width: 100px;
+        min-width: 100px;
         position: absolute;
         margin-left: 1px;
         margin-top: 1px;
@@ -1298,7 +1391,9 @@ onMounted(() => {
     width: 100%;
     max-width: 800px;
     display: flex;
+    --gap-size: 16px;
     gap: 16px;
+    padding: 0 16px;
     align-items: center;
     flex-direction: column;
 
@@ -1335,6 +1430,7 @@ onMounted(() => {
     .greeting {
       display: flex;
       align-items: center;
+      --gap-size: 16px;
       gap: 16px;
       line-height: 32px;
       font-size: 24px;
@@ -1412,6 +1508,8 @@ onMounted(() => {
   top: 18px;
   left: 16px;
   z-index: 199;
+  color: var(--ed-text-color-primary);
+
   &::after {
     content: '';
     background-color: #1f23291a;

@@ -1,20 +1,51 @@
+from decimal import Decimal
+
 import pandas as pd
+
+from apps.chat.models.chat_model import AxisObj
+
 
 class DataFormat:
     @staticmethod
     def safe_convert_to_string(df):
         df_copy = df.copy()
 
-        def format_value(x):
-            if pd.isna(x):
-                return ""
-
-            return "\u200b" + str(x)
-
         for col in df_copy.columns:
-            df_copy[col] = df_copy[col].apply(format_value)
+            # 使用map避免ambiguous truth value问题
+            df_copy[col] = df_copy[col].map(
+                # 关键：在数字字符串前添加零宽空格，阻止pandas的自动格式化
+                lambda x: "" if pd.isna(x) else "\u200b" + str(x)
+            )
 
         return df_copy
+
+    @staticmethod
+    def normalize_qualified_sql_column_keys(row: dict) -> dict:
+        """Add unqualified keys for names like ``alias.column`` (Hive/MySQL return shape).
+
+        Chart bindings use the bare column name (``table_name``) while drivers may return
+        ``_u2.table_name``. Only adds ``short`` when absent to avoid clobbering real duplicates.
+        """
+        if not row:
+            return row
+        out = dict(row)
+        for k, v in row.items():
+            ks = str(k)
+            if "." not in ks:
+                continue
+            short = ks.rsplit(".", 1)[-1]
+            if short not in out:
+                out[short] = v
+        return out
+
+    @staticmethod
+    def normalize_qualified_sql_column_keys_in_object_array(obj_array: list) -> list:
+        if not obj_array:
+            return obj_array
+        return [
+            DataFormat.normalize_qualified_sql_column_keys(obj) if isinstance(obj, dict) else obj
+            for obj in obj_array
+        ]
 
     @staticmethod
     def convert_large_numbers_in_object_array(obj_array, int_threshold=1e15, float_threshold=1e10):
@@ -24,7 +55,7 @@ class DataFormat:
             """格式化浮点数，避免科学记数法"""
             if value == 0:
                 return "0"
-            formatted = f"{value:.15f}"
+            formatted = str(Decimal(str(value)))
             if '.' in formatted:
                 formatted = formatted.rstrip('0').rstrip('.')
             return formatted
@@ -75,6 +106,40 @@ class DataFormat:
                 value = inner_data.get(field.value)
                 _row.append(value)
             md_data.append(_row)
+        return md_data, _fields_list
+
+    @staticmethod
+    def convert_data_fields_for_pandas(chart: dict, fields: list, data: list):
+        _fields = {}
+        if chart.get('columns'):
+            for _column in chart.get('columns'):
+                if _column:
+                    _fields[_column.get('value')] = _column.get('name')
+        if chart.get('axis'):
+            if chart.get('axis').get('x'):
+                _fields[chart.get('axis').get('x').get('value')] = chart.get('axis').get('x').get('name')
+            if chart.get('axis').get('y'):
+                # _fields[chart.get('axis').get('y').get('value')] = chart.get('axis').get('y').get('name')
+                y_axis = chart.get('axis').get('y')
+                if isinstance(y_axis, list):
+                    # y轴是数组的情况（多指标字段）
+                    for y_item in y_axis:
+                        if isinstance(y_item, dict) and 'value' in y_item and 'name' in y_item:
+                            _fields[y_item.get('value')] = y_item.get('name')
+                elif isinstance(y_axis, dict):
+                    # y轴是对象的情况（单指标字段）
+                    if 'value' in y_axis and 'name' in y_axis:
+                        _fields[y_axis.get('value')] = y_axis.get('name')
+            if chart.get('axis').get('series'):
+                _fields[chart.get('axis').get('series').get('value')] = chart.get('axis').get('series').get(
+                    'name')
+        _column_list = []
+        for field in fields:
+            _column_list.append(
+                AxisObj(name=field if not _fields.get(field) else _fields.get(field), value=field))
+
+        md_data, _fields_list = DataFormat.convert_object_array_for_pandas(_column_list, data)
+
         return md_data, _fields_list
 
     @staticmethod

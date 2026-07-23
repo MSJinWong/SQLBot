@@ -11,7 +11,6 @@ import IconOpeDelete from '@/assets/svg/icon_delete.svg'
 import icon_searchOutline_outlined from '@/assets/svg/icon_search-outline_outlined.svg'
 import EmptyBackground from '@/views/dashboard/common/EmptyBackground.vue'
 import { useClipboard } from '@vueuse/core'
-import { useUserStore } from '@/stores/user'
 import { useI18n } from 'vue-i18n'
 import { cloneDeep } from 'lodash-es'
 import { getAdvancedApplicationList } from '@/api/embedded.ts'
@@ -26,7 +25,6 @@ interface Form {
   advanced_application_name: string | null
   description: string | null
 }
-const userStore = useUserStore()
 const { t } = useI18n()
 const multipleSelectionAll = ref<any[]>([])
 const keywords = ref('')
@@ -40,10 +38,6 @@ const selectable = () => {
 }
 onMounted(() => {
   search()
-})
-
-const isDefaultOrg = computed(() => {
-  return userStore.oid === '1'
 })
 
 const dialogFormVisible = ref<boolean>(false)
@@ -216,7 +210,10 @@ const handleToggleRowSelection = (check: boolean = true) => {
   isIndeterminate.value = !(i === 0 || i === arr.length)
 }
 
-const search = () => {
+const search = ($event: any = {}) => {
+  if ($event?.isComposing) {
+    return
+  }
   searchLoading.value = true
   oldKeywords.value = keywords.value
   trainingApi
@@ -258,14 +255,13 @@ const rules = computed(() => {
       },
     ],
   }
-  if (!isDefaultOrg.value) {
-    _list.datasource = [
-      {
-        required: true,
-        message: t('datasource.Please_select') + t('common.empty') + t('ds.title'),
-      },
-    ]
-  }
+  // _list.datasource = [
+  //   {
+  //     required: true,
+  //     message: t('datasource.Please_select') + t('common.empty') + t('ds.title'),
+  //   },
+  // ]
+
   return _list
 })
 
@@ -273,11 +269,9 @@ const list = () => {
   datasourceApi.list().then((res: any) => {
     options.value = res || []
   })
-  if (isDefaultOrg.value) {
-    getAdvancedApplicationList().then((res: any) => {
-      adv_options.value = res || []
-    })
-  }
+  getAdvancedApplicationList().then((res: any) => {
+    adv_options.value = res || []
+  })
 }
 
 const saveHandler = () => {
@@ -310,6 +304,7 @@ const editHandler = (row: any) => {
   if (row) {
     pageForm.value = cloneDeep(row)
   }
+  console.log(pageForm.value)
   list()
 
   dialogTitle.value = row?.id ? t('training.edit_training_data') : t('training.add_training_data')
@@ -362,13 +357,13 @@ const onRowFormClose = () => {
   <div v-loading="searchLoading" class="training">
     <div class="tool-left">
       <span class="page-title">{{ $t('training.data_training') }}</span>
-      <div class="tool-row">
+      <div class="tool-row flex-gap-fallback">
         <el-input
           v-model="keywords"
           style="width: 240px"
           :placeholder="$t('training.search_problem')"
           clearable
-          @blur="search"
+          @keydown.enter.exact.prevent="search"
         >
           <template #prefix>
             <el-icon>
@@ -399,7 +394,7 @@ const onRowFormClose = () => {
     <div
       v-if="!searchLoading"
       class="table-content"
-      :class="multipleSelectionAll?.length && 'show-pagination_height'"
+      :class="multipleSelectionAll?.length ? 'show-pagination_height' : ''"
     >
       <div class="preview-or-schema">
         <el-table
@@ -423,7 +418,6 @@ const onRowFormClose = () => {
           </el-table-column>
           <el-table-column prop="datasource_name" :label="$t('ds.title')" min-width="180" />
           <el-table-column
-            v-if="isDefaultOrg"
             prop="advanced_application_name"
             :label="$t('embedded.advanced_application')"
             min-width="180"
@@ -585,11 +579,7 @@ const onRowFormClose = () => {
         </el-select>
       </el-form-item>
 
-      <el-form-item
-        v-if="isDefaultOrg"
-        prop="advanced_application"
-        :label="t('embedded.advanced_application')"
-      >
+      <el-form-item prop="advanced_application" :label="t('embedded.advanced_application')">
         <el-select
           v-model="pageForm.advanced_application"
           filterable
@@ -650,7 +640,7 @@ const onRowFormClose = () => {
           {{ pageForm.datasource_name }}
         </div>
       </el-form-item>
-      <el-form-item v-if="isDefaultOrg" :label="t('embedded.advanced_application')">
+      <el-form-item :label="t('embedded.advanced_application')">
         <div class="content">
           {{ pageForm.advanced_application_name }}
         </div>
@@ -694,6 +684,7 @@ const onRowFormClose = () => {
     display: flex;
     align-items: center;
     flex-direction: row;
+    --gap-size: 8px;
     gap: 8px;
   }
 

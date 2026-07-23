@@ -4,7 +4,7 @@ import DisplayChartBlock from '@/views/chat/component/DisplayChartBlock.vue'
 import ChartPopover from '@/views/chat/chat-block/ChartPopover.vue'
 import { computed, ref, watch } from 'vue'
 import { useClipboard } from '@vueuse/core'
-import { concat } from 'lodash-es'
+import { concat, filter, includes, map } from 'lodash-es'
 import type { ChartTypes } from '@/views/chat/component/BaseChart.ts'
 import ICON_BAR from '@/assets/svg/chart/icon_bar_outlined.svg'
 import ICON_COLUMN from '@/assets/svg/chart/icon_dashboard_outlined.svg'
@@ -19,13 +19,18 @@ import icon_into_item_outlined from '@/assets/svg/icon_into-item_outlined.svg'
 import icon_window_max_outlined from '@/assets/svg/icon_window-max_outlined.svg'
 import icon_window_mini_outlined from '@/assets/svg/icon_window-mini_outlined.svg'
 import icon_copy_outlined from '@/assets/svg/icon_copy_outlined.svg'
+import ICON_STYLE from '@/assets/svg/icon_style-set_outlined.svg'
+import THOUSAND_SEPARATOR from '@/assets/svg/chart/icon-thousand-separator.svg'
 import { useI18n } from 'vue-i18n'
 import SQLComponent from '@/views/chat/component/SQLComponent.vue'
 import { useAssistantStore } from '@/stores/assistant'
 import AddViewDashboard from '@/views/dashboard/common/AddViewDashboard.vue'
 import html2canvas from 'html2canvas'
 import { chatApi } from '@/api/chat'
+import { useChatConfigStore } from '@/stores/chatConfig.ts'
 
+const chatConfig = useChatConfigStore()
+const showSQLBtn = chatConfig.getShowSQL
 const props = withDefaults(
   defineProps<{
     recordId?: number
@@ -34,6 +39,8 @@ const props = withDefaults(
     chatType?: ChartTypes
     enlarge?: boolean
     loadingData?: boolean
+    thousandsSeparatorList: Array<string>
+    showLabel: boolean
   }>(),
   {
     recordId: undefined,
@@ -41,6 +48,8 @@ const props = withDefaults(
     chatType: undefined,
     enlarge: false,
     loadingData: false,
+    thousandsSeparatorList: () => [],
+    showLabel: false,
   }
 )
 
@@ -48,12 +57,15 @@ const { copy } = useClipboard({ legacy: true })
 const loading = ref<boolean>(false)
 const { t } = useI18n()
 const addViewRef = ref(null)
-const emits = defineEmits(['exitFullScreen'])
+const emits = defineEmits(['exitFullScreen', 'update:thousandsSeparatorList', 'update:showLabel'])
 
 const dataObject = computed<{
   fields: Array<string>
+  fields_info: Array<{ name: string; is_numeric: boolean }>
   data: Array<{ [key: string]: any }>
   limit: number | undefined
+  datasource: number | undefined
+  sql: string | undefined
 }>(() => {
   if (props.message?.record?.data) {
     if (typeof props.message?.record?.data === 'string') {
@@ -193,7 +205,15 @@ function reloadChart() {
 
 const dialogVisible = ref(false)
 
+function setHiddenSidebarBtnZIndex(value: string) {
+  const sidebarBtns = document.querySelectorAll('.hidden-sidebar-btn')
+  sidebarBtns.forEach((btn) => {
+    ;(btn as HTMLElement).style.zIndex = value
+  })
+}
+
 function openFullScreen() {
+  setHiddenSidebarBtnZIndex('0')
   dialogVisible.value = true
 }
 
@@ -203,6 +223,7 @@ function closeFullScreen() {
 
 function onExitFullScreen() {
   dialogVisible.value = false
+  setHiddenSidebarBtnZIndex('11')
 }
 
 const sqlShow = ref(false)
@@ -217,18 +238,42 @@ function addToDashboard() {
     data: {
       data: data.value,
     },
+    sql: props.message?.record?.sql,
+    datasource: props.message?.record?.datasource,
     chart: {},
   }
   // @ts-expect-error eslint-disable-next-line @typescript-eslint/ban-ts-comment
   const chartBaseInfo = JSON.parse(props.message?.record?.chart)
-  recordeInfo['chart'] = {
-    type: currentChartType.value,
-    title: chartBaseInfo.title,
-    columns: chartBaseInfo.columns,
-    xAxis: chartBaseInfo.axis?.x ? [chartBaseInfo.axis.x] : [],
-    yAxis: chartBaseInfo.axis?.y ? [chartBaseInfo.axis.y] : [],
-    series: chartBaseInfo.axis?.series ? [chartBaseInfo.axis.series] : [],
+  if (chartBaseInfo) {
+    let yAxis = []
+    const axis = chartBaseInfo?.axis
+    if (!axis?.y) {
+      yAxis = []
+    } else {
+      const y = axis.y
+      const multiQuotaValues = axis['multi-quota']?.value || []
+
+      // 统一处理为数组
+      const yArray = Array.isArray(y) ? [...y] : [{ ...y }]
+
+      // 标记 multi-quota
+      yAxis = yArray.map((item) => ({
+        ...item,
+        'multi-quota': multiQuotaValues.includes(item.value),
+      }))
+    }
+
+    recordeInfo['chart'] = {
+      type: currentChartType.value ?? chartBaseInfo?.type,
+      title: chartBaseInfo?.title,
+      columns: chartBaseInfo?.columns,
+      xAxis: axis?.x ? [axis?.x] : [],
+      yAxis: yAxis,
+      series: axis?.series ? [axis?.series] : [],
+      multiQuotaName: axis?.['multi-quota']?.name,
+    }
   }
+
   // @ts-expect-error eslint-disable-next-line @typescript-eslint/ban-ts-comment
   addViewRef.value?.optInit(recordeInfo)
 }
@@ -247,7 +292,7 @@ function exportToExcel() {
   if (chartRef.value && props.recordId) {
     loading.value = true
     chatApi
-      .export2Excel(props.recordId)
+      .export2Excel(props.recordId, props.message?.record?.chat_id || 0)
       .then((res) => {
         const blob = new Blob([res], {
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -323,6 +368,35 @@ watch(
     }
   }
 )
+
+const _showLabel = computed({
+  get() {
+    return props.showLabel
+  },
+  set(v) {
+    emits('update:showLabel', v)
+  },
+})
+
+const enableThousandsSeparatorList = computed({
+  get() {
+    return props.thousandsSeparatorList
+  },
+  set(v) {
+    emits('update:thousandsSeparatorList', v)
+  },
+})
+
+const optionList = ref<Array<{ name: string; value: string }>>([])
+function getBaseAxis() {
+  const _list = chartRef.value?.getBaseAxis()
+  if (dataObject.value.fields_info) {
+    const numberList = map(filter(dataObject.value.fields_info, { is_numeric: true }), 'name')
+    optionList.value = filter(_list, (obj) => includes(numberList, obj.value))
+  } else {
+    optionList.value = _list
+  }
+}
 </script>
 
 <template>
@@ -336,12 +410,12 @@ watch(
     class="chart-component-container"
     :class="{ 'full-screen': enlarge }"
   >
-    <div class="header-bar">
+    <div class="header-bar flex-gap-fallback">
       <div class="title">
         {{ chartObject.title }}
       </div>
-      <div class="buttons-bar">
-        <div class="chart-select-container">
+      <div class="buttons-bar flex-gap-fallback">
+        <div class="chart-select-container flex-gap-fallback">
           <el-tooltip effect="dark" :offset="8" :content="t('chat.type')" placement="top">
             <ChartPopover
               v-if="chartTypeList.length > 0"
@@ -349,7 +423,7 @@ watch(
               :chart-type="chartType"
               :title="t('chat.type')"
               @type-change="onTypeChange"
-            ></ChartPopover>
+            />
           </el-tooltip>
 
           <el-tooltip
@@ -371,7 +445,75 @@ watch(
           </el-tooltip>
         </div>
 
-        <div v-if="message?.record?.sql">
+        <div class="chart-select-container flex-gap-fallback">
+          <template v-if="currentChartType !== 'table'">
+            <el-tooltip
+              effect="dark"
+              :offset="8"
+              :content="_showLabel ? t('chat.hide_label') : t('chat.show_label')"
+              placement="top"
+            >
+              <el-button
+                class="tool-btn"
+                :class="{ 'chart-active': _showLabel }"
+                text
+                @click="_showLabel = !_showLabel"
+              >
+                <el-icon size="16">
+                  <ICON_STYLE />
+                </el-icon>
+              </el-button>
+            </el-tooltip>
+          </template>
+          <el-tooltip
+            effect="dark"
+            :offset="8"
+            :content="t('chat.thousands_separator_setting')"
+            placement="top"
+          >
+            <div>
+              <el-popover
+                popper-class="thousands-separator_popover"
+                :teleported="false"
+                placement="bottom"
+                trigger="click"
+              >
+                <template #reference>
+                  <el-button class="tool-btn" text @click="getBaseAxis">
+                    <el-icon size="16">
+                      <THOUSAND_SEPARATOR />
+                    </el-icon>
+                  </el-button>
+                </template>
+                <label style="font-weight: 500; line-height: 28px">
+                  {{ t('chat.thousands_separator_display') }}
+                </label>
+                <el-scrollbar max-height="300px">
+                  <el-checkbox-group
+                    v-model="enableThousandsSeparatorList"
+                    style="display: flex; flex-direction: column"
+                  >
+                    <el-checkbox
+                      v-for="option in optionList"
+                      :key="option.value"
+                      size="large"
+                      :value="option.value"
+                    >
+                      <span
+                        :title="option.name"
+                        class="ellipsis"
+                        style="display: inline-block; width: 100%"
+                        >{{ option.name }}</span
+                      >
+                    </el-checkbox>
+                  </el-checkbox-group>
+                </el-scrollbar>
+              </el-popover>
+            </div>
+          </el-tooltip>
+        </div>
+
+        <div v-if="message?.record?.sql && showSQLBtn">
           <el-tooltip effect="dark" :offset="8" :content="t('chat.show_sql')" placement="top">
             <el-button class="tool-btn" text @click="showSql">
               <el-icon size="16">
@@ -476,6 +618,8 @@ watch(
           :message="message"
           :data="data"
           :loading-data="loadingData"
+          :show-label="_showLabel"
+          :thousands-separator-list="enableThousandsSeparatorList"
         />
       </div>
       <div v-if="dataObject.limit" class="over-limit-hint">
@@ -494,7 +638,9 @@ watch(
       body-class="chart-fullscreen-dialog-body"
     >
       <ChartBlock
-        v-if="dialogVisible"
+        v-if="dialogVisible && !enlarge"
+        v-model:show-label="_showLabel"
+        v-model:thousands-separator-list="enableThousandsSeparatorList"
         :message="message"
         :record-id="recordId"
         :is-predict="isPredict"
@@ -537,8 +683,15 @@ watch(
   display: none;
 }
 
+.thousands-separator_popover {
+  .ed-checkbox__label {
+    max-width: 100%;
+  }
+}
+
 .chart-fullscreen-dialog-body {
   padding: 0;
+  height: 100%;
 }
 
 .chart-sql-drawer-body {
@@ -577,7 +730,7 @@ watch(
       padding-right: 8px;
       margin-bottom: 2px;
       position: relative;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
 
       &:last-child {
@@ -618,7 +771,6 @@ watch(
   padding: 16px;
   display: flex;
   flex-direction: column;
-
   border: 1px solid rgba(222, 224, 227, 1);
   border-radius: 12px;
 
@@ -626,6 +778,7 @@ watch(
     border: unset;
     border-radius: unset;
     padding: 0;
+    height: 100%;
 
     .header-bar {
       border-bottom: 1px solid rgba(31, 35, 41, 0.15);
@@ -636,8 +789,7 @@ watch(
     .chart-block {
       margin: unset;
       padding: 16px;
-
-      height: calc(100vh - 56px);
+      height: calc(100% - 56px);
     }
   }
 
@@ -647,6 +799,7 @@ watch(
 
     align-items: center;
     flex-direction: row;
+    --gap-size: 16px;
     gap: 16px;
 
     .tool-btn {
@@ -713,6 +866,7 @@ watch(
       flex-direction: row;
       align-items: center;
 
+      --gap-size: 16px;
       gap: 16px;
 
       .divider {
@@ -726,6 +880,7 @@ watch(
       padding: 3px;
       display: flex;
       flex-direction: row;
+      --gap-size: 4px;
       gap: 4px;
       border-radius: 6px;
 

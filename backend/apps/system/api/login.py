@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from apps.system.schemas.logout_schema import LogoutSchema
 from apps.system.schemas.system_schema import BaseUserDTO
@@ -10,10 +10,19 @@ from common.core.security import create_access_token
 from datetime import timedelta
 from common.core.config import settings
 from common.core.schemas import Token
+from sqlbot_xpack.authentication.manage import logout as xpack_logout
+
+from common.audit.models.log_model import OperationType, OperationModules
+from common.audit.schemas.logger_decorator import system_log, LogConfig
 
 router = APIRouter(tags=["login"], prefix="/login")
 
 @router.post("/access-token")
+@system_log(LogConfig(
+    operation_type=OperationType.LOGIN,
+    module=OperationModules.USER,
+    result_id_expr="id"
+))
 async def local_login(
     session: SessionDep,
     trans: Trans,
@@ -37,7 +46,7 @@ async def local_login(
     ))
 
 @router.post("/logout")
-async def logout(session: SessionDep, dto: LogoutSchema):
-    # 开源版本：简单登出，不需要特殊处理
-    # 第三方登录（origin != 0）在开源版本中不支持
+async def logout(session: SessionDep, request: Request, dto: LogoutSchema):
+    if dto.origin != 0:
+        return await xpack_logout(session, request, dto)
     return None

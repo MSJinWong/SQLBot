@@ -124,12 +124,12 @@ defineExpose({
 
 <template>
   <div class="chart-base-container">
-    <div class="header-bar">
+    <div class="header-bar flex-gap-fallback">
       <div class="title">
         {{ viewInfo.chart.title }}
       </div>
-      <div v-if="showPosition === 'multiplexing'" class="buttons-bar">
-        <div class="chart-select-container">
+      <div v-if="showPosition === 'multiplexing'" class="buttons-bar flex-gap-fallback">
+        <div class="chart-select-container flex-gap-fallback">
           <el-tooltip effect="dark" :content="t('chat.type')" placement="top">
             <ChartPopover
               v-if="chartTypeList.length > 0"
@@ -156,8 +156,11 @@ defineExpose({
       </div>
     </div>
     <div class="chart-show-area">
+      <div v-if="viewInfo.status === 'failed'" class="error-info">
+        {{ viewInfo.message }}
+      </div>
       <ChartComponent
-        v-if="viewInfo.id"
+        v-else-if="viewInfo.id"
         :id="outerId || viewInfo.id"
         ref="chartRef"
         :type="chartType"
@@ -166,6 +169,7 @@ defineExpose({
         :y="viewInfo.chart?.yAxis"
         :series="viewInfo.chart?.series"
         :data="viewInfo.data?.data"
+        :multi-quota-name="viewInfo.chart?.multiQuotaName"
       />
     </div>
     <el-dialog
@@ -287,6 +291,7 @@ defineExpose({
       display: flex;
       flex-direction: row;
       align-items: center;
+      --gap-size: 16px;
       gap: 16px;
       margin-right: 36px;
       .divider {
@@ -300,6 +305,7 @@ defineExpose({
       padding: 3px;
       display: flex;
       flex-direction: row;
+      --gap-size: 4px;
       gap: 4px;
       border-radius: 6px;
 
@@ -341,6 +347,7 @@ defineExpose({
   flex-direction: row;
   align-items: center;
 
+  --gap-size: 16px;
   gap: 16px;
 
   .divider {
@@ -354,6 +361,7 @@ defineExpose({
   padding: 3px;
   display: flex;
   flex-direction: row;
+  --gap-size: 4px;
   gap: 4px;
   border-radius: 6px;
 
@@ -381,5 +389,16 @@ defineExpose({
       font-size: 12px !important;
     }
   }
+}
+
+.error-info {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  color: var(--N600, #646a73);
 }
 </style>

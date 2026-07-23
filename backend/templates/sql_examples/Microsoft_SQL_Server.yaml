@@ -21,6 +21,7 @@ template:
 
   other_rule: |
     <rule>必须为每个表生成别名（不加AS）</rule>
+    {multi_table_condition}
     <rule>禁止使用星号(*)，必须明确字段名</rule>
     <rule>中文/特殊字符字段需保留原名并添加英文别名</rule>
     <rule>函数字段必须加别名</rule>
@@ -51,6 +52,7 @@ template:
             COUNT([o].[订单ID]) AS [total_orders],
             CONVERT(VARCHAR, ROUND([o].[折扣率] * 100, 2)) + '%' AS [discount_percent]
           FROM [Sales].[Orders] [o]
+          GROUP BY [o].[订单ID], [o].[金额], [o].[折扣率]
         </output-good>
       </example>
 

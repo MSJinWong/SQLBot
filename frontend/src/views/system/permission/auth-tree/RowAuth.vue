@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import AuthTree from './AuthTree.vue'
 import { useI18n } from 'vue-i18n'
+import { variablesApi } from '@/api/variables'
 
 const { t } = useI18n()
 const errorMessage = ref('')
@@ -26,9 +27,10 @@ const svgDashinePath = computed(() => {
   return path
 })
 
-const init = (expressionTree: any) => {
+const init = async (expressionTree: any) => {
   const { logic: lg = 'or', items = [] } = expressionTree
   logic.value = lg
+  await getVariables()
   relationList.value = dfsInit(items)
 }
 const submit = () => {
@@ -39,7 +41,7 @@ const submit = () => {
     errorMessage: errorMessage.value,
   })
 }
-const errorDetected = ({ filter_type, field_id, term, value }: any) => {
+const errorDetected = ({ filter_type, field_id, term, value, value_type, variable_id }: any) => {
   if (!field_id) {
     errorMessage.value = t('permission.cannot_be_empty_')
     return
@@ -53,7 +55,28 @@ const errorDetected = ({ filter_type, field_id, term, value }: any) => {
       errorMessage.value = t('permission.filter_value_can_null')
       return
     }
+
+    if (
+      value_type === 'variable' &&
+      !term.includes('null') &&
+      !term.includes('empty') &&
+      [null, undefined, ''].includes(variable_id)
+    ) {
+      errorMessage.value = t('permission.filter_value_can_null')
+      return
+    }
   }
+}
+const variables = ref<any[]>([])
+const getVariables = () => {
+  return variablesApi.listAll().then((res: any) => {
+    variables.value = res || []
+  })
+}
+
+const canPush = (value_type: any, variable_id: any) => {
+  if (value_type === 'normal') return true
+  return variables.value.some((ele) => ele.id === variable_id)
 }
 const dfsInit = (arr: any[]) => {
   const elementList: any[] = []
@@ -64,16 +87,29 @@ const dfsInit = (arr: any[]) => {
       const child = dfsInit(items)
       elementList.push({ logic, child })
     } else {
-      const { enum_value, field_id, filter_type, term, value, field } = ele
-      const { name } = field || {}
-      elementList.push({
-        enum_value: enum_value.join(','),
+      const {
+        enum_value,
         field_id,
         filter_type,
         term,
         value,
-        name,
-      })
+        field,
+        value_type = 'normal',
+        variable_id = '',
+      } = ele
+      const { name } = field || {}
+      if (canPush(value_type, variable_id)) {
+        elementList.push({
+          enum_value: enum_value.join(','),
+          field_id,
+          filter_type,
+          term,
+          value,
+          name,
+          value_type,
+          variable_id,
+        })
+      }
     }
   })
   return elementList
@@ -90,13 +126,24 @@ const dfsSubmit = (arr: any[]) => {
         field_id: '',
         filter_type: '',
         term: '',
+        value_type: 'normal',
+        variable_id: undefined,
         type: 'tree',
         value: '',
         sub_tree: { logic, items: sub_tree },
       })
     } else {
-      const { enum_value, field_id, filter_type, term, value, name } = ele
-      errorDetected({ enum_value, field_id, filter_type, term, value, name })
+      const { enum_value, field_id, filter_type, term, value, name, value_type, variable_id } = ele
+      errorDetected({
+        enum_value,
+        field_id,
+        filter_type,
+        term,
+        value,
+        name,
+        value_type,
+        variable_id,
+      })
       if (field_id) {
         items.push({
           enum_value: enum_value ? enum_value.split(',') : [],
@@ -104,6 +151,8 @@ const dfsSubmit = (arr: any[]) => {
           filter_type,
           term,
           value,
+          value_type,
+          variable_id,
           type: 'item',
           sub_tree: null,
         })
@@ -247,6 +296,8 @@ const addCondReal = (type: any, logic: any) => {
           term: '',
           filter_type: 'logic',
           name: '',
+          value_type: 'normal',
+          variable_id: undefined,
         }
       : { child: [], logic }
   )

@@ -1,5 +1,5 @@
 from collections.abc import Iterator, Mapping
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 from langchain_core.language_models import LanguageModelInput
 from langchain_core.messages import (
@@ -27,8 +27,12 @@ def _convert_delta_to_message_chunk(
     role = cast(str, _dict.get("role"))
     content = cast(str, _dict.get("content") or "")
     additional_kwargs: dict = {}
-    if 'reasoning_content' in _dict:
-        additional_kwargs['reasoning_content'] = _dict.get('reasoning_content')
+    # 兼容 reasoning_content (DeepSeek等) 和 reasoning (Ollama/LMStudio GPT-OSS) 两种字段
+    reasoning_content = _dict.get('reasoning_content')
+    if not reasoning_content:
+        reasoning_content = _dict.get('reasoning')
+    if reasoning_content:
+        additional_kwargs['reasoning_content'] = reasoning_content
     if _dict.get("function_call"):
         function_call = dict(_dict["function_call"])
         if "name" in function_call and function_call["name"] is None:
@@ -80,6 +84,27 @@ def _convert_delta_to_message_chunk(
 
 
 class BaseChatOpenAI(ChatOpenAI):
+    @property
+    def _default_params(self) -> dict[str, Any]:
+        max_tokens = self.max_tokens
+        params = super()._default_params
+        if max_tokens:
+            params["max_tokens"] = max_tokens
+        return params
+
+    def _get_request_payload(
+            self,
+            input_: LanguageModelInput,
+            *,
+            stop: Optional[list[str]] = None,
+            **kwargs: Any,
+    ) -> dict:
+        max_tokens = self.max_tokens
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
+        return payload
+
     usage_metadata: dict = {}
 
     # custom_get_token_ids = custom_get_token_ids
@@ -95,10 +120,10 @@ class BaseChatOpenAI(ChatOpenAI):
             yield chunk
 
     def _convert_chunk_to_generation_chunk(
-        self,
-        chunk: dict,
-        default_chunk_class: type,
-        base_generation_info: dict | None,
+            self,
+            chunk: dict,
+            default_chunk_class: type,
+            base_generation_info: dict | None,
     ) -> ChatGenerationChunk | None:
         if chunk.get("type") == "content.delta":  # from beta.chat.completions.stream
             return None
@@ -150,12 +175,12 @@ class BaseChatOpenAI(ChatOpenAI):
         return generation_chunk
 
     def invoke(
-        self,
-        input: LanguageModelInput,
-        config: RunnableConfig | None = None,
-        *,
-        stop: list[str] | None = None,
-        **kwargs: Any,
+            self,
+            input: LanguageModelInput,
+            config: RunnableConfig | None = None,
+            *,
+            stop: list[str] | None = None,
+            **kwargs: Any,
     ) -> BaseMessage:
         config = ensure_config(config)
         chat_result = cast(
