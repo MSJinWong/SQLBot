@@ -383,6 +383,8 @@ const topForm = reactive<{
   help: string
   showDoc: string
   showAbout: string
+  pc_welcome: string
+  pc_welcome_desc: string
 }>(cloneDeep(defaultTopForm))
 
 const isBlue = computed(() => {
